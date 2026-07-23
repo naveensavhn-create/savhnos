@@ -1,10 +1,22 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { apiFetch, ApiError } from "@/lib/api";
-import { UserRole } from "@savhnos/shared";
+import { useEffect, useMemo, useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
+import { LayoutGrid, List, Plus, Users, MapPin } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+import { useNewFlag } from "@/lib/use-new-flag";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { employmentStatusColor, formatStatusLabel } from "@/lib/status";
+import { Avatar } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { employmentStatusVariant, formatStatusLabel } from "@/lib/status";
+import { cn } from "@/lib/cn";
+import { NewEmployeeDialog } from "./new-employee-dialog";
+import { EmployeeDetailDialog } from "./employee-detail-dialog";
 
 interface Employee {
   id: string;
@@ -12,164 +24,184 @@ interface Employee {
   designation: string | null;
   department: string | null;
   status: string;
-  user: { name: string; email: string; role: string };
+  user: { name: string; email: string; role: string; isActive: boolean };
+  branch: { name: string } | null;
 }
 
-const inputClass =
-  "rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
+interface AttendanceToday {
+  employeeId: string;
+  clockOutAt: string | null;
+  project: { name: string; code: string } | null;
+}
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: UserRole.SITE_ENGINEER,
-    employeeCode: "",
-    designation: "",
-    department: "",
-  });
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"grid" | "table">("grid");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [todayMap, setTodayMap] = useState<Map<string, AttendanceToday>>(new Map());
+  const [search, setSearch] = useState("");
+  const openViaQuery = useNewFlag();
 
-  const load = () =>
-    apiFetch<Employee[]>("/employees").then(setEmployees).catch((err) => setError(err.message));
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    try {
-      await apiFetch("/employees", { method: "POST", body: JSON.stringify(form) });
-      setShowForm(false);
-      setForm({ ...form, name: "", email: "", password: "", employeeCode: "", designation: "", department: "" });
-      load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create employee");
-    }
+  const load = () => {
+    setLoading(true);
+    apiFetch<Employee[]>("/employees")
+      .then(setEmployees)
+      .finally(() => setLoading(false));
+    apiFetch<AttendanceToday[]>("/attendance/today")
+      .then((records) => setTodayMap(new Map(records.map((r) => [r.employeeId, r]))))
+      .catch(() => {});
   };
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Employees</h1>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800"
-        >
-          {showForm ? "Cancel" : "Add employee"}
+  useEffect(load, []);
+  useEffect(() => {
+    if (openViaQuery) setDialogOpen(true);
+  }, [openViaQuery]);
+
+  const filtered = useMemo(
+    () =>
+      employees.filter((e) =>
+        `${e.user.name} ${e.employeeCode} ${e.designation ?? ""} ${e.department ?? ""}`
+          .toLowerCase()
+          .includes(search.toLowerCase())
+      ),
+    [employees, search]
+  );
+
+  const columns: ColumnDef<Employee>[] = [
+    {
+      accessorKey: "user.name",
+      header: "Name",
+      cell: ({ row }) => (
+        <button onClick={() => setSelectedId(row.original.id)} className="flex items-center gap-2.5 text-left hover:text-primary">
+          <Avatar name={row.original.user.name} size="sm" />
+          <div>
+            <p className="font-medium">{row.original.user.name}</p>
+            <p className="font-mono text-xs text-muted-foreground">{row.original.employeeCode}</p>
+          </div>
         </button>
+      ),
+    },
+    { id: "role", header: "Role", accessorFn: (r) => formatStatusLabel(r.user.role) },
+    { id: "designation", header: "Designation", accessorFn: (r) => r.designation ?? "—" },
+    { id: "department", header: "Department", accessorFn: (r) => r.department ?? "—" },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant={employmentStatusVariant(row.original.status)} dot>
+          {formatStatusLabel(row.original.status)}
+        </Badge>
+      ),
+    },
+    {
+      id: "today",
+      header: "Today",
+      cell: ({ row }) => {
+        const rec = todayMap.get(row.original.id);
+        if (!rec) return <span className="text-xs text-muted-foreground">Not clocked in</span>;
+        return (
+          <Badge variant={rec.clockOutAt ? "neutral" : "success"} dot>
+            {rec.clockOutAt ? "Clocked out" : "On site"}
+          </Badge>
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
+          <p className="text-sm text-muted-foreground">{loading ? "Loading…" : `${employees.length} people`}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-xl border border-border bg-muted/60 p-1">
+            <button
+              onClick={() => setView("grid")}
+              className={cn("rounded-lg p-1.5", view === "grid" ? "bg-card shadow-soft" : "text-muted-foreground")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setView("table")}
+              className={cn("rounded-lg p-1.5", view === "table" ? "bg-card shadow-soft" : "text-muted-foreground")}
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+          <Button onClick={() => setDialogOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Add employee
+          </Button>
+        </div>
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={onSubmit}
-          className="grid grid-cols-2 gap-4 rounded-xl border border-steel-200 bg-white p-6"
-        >
-          <input
-            required
-            placeholder="Full name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            required
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            required
-            type="password"
-            minLength={8}
-            placeholder="Temporary password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className={inputClass}
-          />
-          <select
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}
-            className={inputClass}
-          >
-            {Object.values(UserRole).map((role) => (
-              <option key={role} value={role}>
-                {role.replaceAll("_", " ")}
-              </option>
-            ))}
-          </select>
-          <input
-            required
-            placeholder="Employee code (e.g. EMP-010)"
-            value={form.employeeCode}
-            onChange={(e) => setForm({ ...form, employeeCode: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            placeholder="Designation"
-            value={form.designation}
-            onChange={(e) => setForm({ ...form, designation: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            placeholder="Department"
-            value={form.department}
-            onChange={(e) => setForm({ ...form, department: e.target.value })}
-            className={inputClass}
-          />
-          {error && (
-            <p className="col-span-2 rounded-md border border-alert-300 bg-alert-50 px-3 py-2 text-sm font-medium text-black">
-              {error}
-            </p>
+      {view === "table" ? (
+        <DataTable
+          columns={columns}
+          data={employees}
+          loading={loading}
+          searchPlaceholder="Search employees…"
+          emptyState={<EmptyState icon={Users} title="No employees yet" action={<Button onClick={() => setDialogOpen(true)}>Add employee</Button>} />}
+        />
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="max-w-xs">
+            <Input placeholder="Search employees…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          {loading ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <EmptyState icon={Users} title="No employees found" action={<Button onClick={() => setDialogOpen(true)}>Add employee</Button>} />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((e) => {
+                const rec = todayMap.get(e.id);
+                return (
+                  <Card
+                    key={e.id}
+                    className="cursor-pointer p-5 transition-shadow hover:shadow-popover"
+                    onClick={() => setSelectedId(e.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <Avatar name={e.user.name} size="lg" />
+                      <Badge variant={employmentStatusVariant(e.status)} dot>
+                        {formatStatusLabel(e.status)}
+                      </Badge>
+                    </div>
+                    <p className="mt-3 truncate font-semibold">{e.user.name}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {e.designation ?? formatStatusLabel(e.user.role)}
+                      {e.department ? ` · ${e.department}` : ""}
+                    </p>
+                    <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                      <span className="font-mono text-xs text-muted-foreground">{e.employeeCode}</span>
+                      {rec ? (
+                        <Badge variant={rec.clockOutAt ? "neutral" : "success"} dot className="text-[10px]">
+                          {rec.clockOutAt ? "Clocked out" : "On site"}
+                        </Badge>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <MapPin className="h-3 w-3" /> Not clocked in
+                        </span>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
           )}
-          <button
-            type="submit"
-            className="col-span-2 rounded-md bg-safety-500 px-4 py-2 font-semibold text-black hover:bg-safety-600"
-          >
-            Create employee
-          </button>
-        </form>
+        </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-steel-200">
-        <table className="w-full text-sm">
-          <thead className="bg-steel-100 text-left">
-            <tr>
-              <th className="px-4 py-3 font-bold">Code</th>
-              <th className="px-4 py-3 font-bold">Name</th>
-              <th className="px-4 py-3 font-bold">Role</th>
-              <th className="px-4 py-3 font-bold">Designation</th>
-              <th className="px-4 py-3 font-bold">Status</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {employees.map((emp) => (
-              <tr key={emp.id} className="border-t border-steel-200">
-                <td className="px-4 py-3 font-mono font-semibold">{emp.employeeCode}</td>
-                <td className="px-4 py-3 font-medium">{emp.user.name}</td>
-                <td className="px-4 py-3">{emp.user.role.replaceAll("_", " ")}</td>
-                <td className="px-4 py-3">{emp.designation ?? "—"}</td>
-                <td className="px-4 py-3">
-                  <Badge color={employmentStatusColor(emp.status)}>{formatStatusLabel(emp.status)}</Badge>
-                </td>
-              </tr>
-            ))}
-            {employees.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-steel-600">
-                  No employees yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <NewEmployeeDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={load} />
+      <EmployeeDetailDialog employeeId={selectedId} onOpenChange={setSelectedId} />
     </div>
   );
 }

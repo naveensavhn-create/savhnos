@@ -1,10 +1,20 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { apiFetch, ApiError } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
+import { toast } from "sonner";
+import { KanbanSquare, List, Plus, Handshake, Mail, Phone } from "lucide-react";
 import { PipelineStage } from "@savhnos/shared";
+import { apiFetch, ApiError } from "@/lib/api";
+import { useNewFlag } from "@/lib/use-new-flag";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatStatusLabel, pipelineStageColor } from "@/lib/status";
+import { Card } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatStatusLabel, pipelineStageVariant } from "@/lib/status";
+import { cn } from "@/lib/cn";
+import { NewClientDialog } from "./new-client-dialog";
 
 interface Client {
   id: string;
@@ -16,141 +26,147 @@ interface Client {
   estimatedValue: string | null;
 }
 
-const inputClass =
-  "rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
+const currency = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0, notation: "compact" });
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", organization: "", email: "", phone: "" });
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"kanban" | "table">("kanban");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const openViaQuery = useNewFlag();
 
-  const load = () => apiFetch<Client[]>("/clients").then(setClients).catch((err) => setError(err.message));
+  const load = () => {
+    setLoading(true);
+    apiFetch<Client[]>("/clients")
+      .then(setClients)
+      .finally(() => setLoading(false));
+  };
 
+  useEffect(load, []);
   useEffect(() => {
-    load();
-  }, []);
+    if (openViaQuery) setDialogOpen(true);
+  }, [openViaQuery]);
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const updateStage = async (id: string, pipelineStage: string) => {
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, pipelineStage } : c)));
     try {
-      await apiFetch("/clients", { method: "POST", body: JSON.stringify(form) });
-      setShowForm(false);
-      setForm({ name: "", organization: "", email: "", phone: "" });
-      load();
+      await apiFetch(`/clients/${id}`, { method: "PATCH", body: JSON.stringify({ pipelineStage }) });
+      toast.success("Pipeline stage updated");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create client");
+      toast.error(err instanceof ApiError ? err.message : "Failed to update stage");
+      load();
     }
   };
 
-  const updateStage = async (id: string, pipelineStage: PipelineStage) => {
-    await apiFetch(`/clients/${id}`, { method: "PATCH", body: JSON.stringify({ pipelineStage }) });
-    load();
-  };
+  const totalPipelineValue = useMemo(
+    () => clients.reduce((sum, c) => sum + (c.estimatedValue ? Number(c.estimatedValue) : 0), 0),
+    [clients]
+  );
+
+  const columns: ColumnDef<Client>[] = [
+    { accessorKey: "name", header: "Name", cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+    { id: "organization", header: "Organization", accessorFn: (r) => r.organization ?? "—" },
+    { id: "contact", header: "Contact", accessorFn: (r) => r.email ?? r.phone ?? "—" },
+    {
+      accessorKey: "pipelineStage",
+      header: "Stage",
+      cell: ({ row }) => (
+        <Badge variant={pipelineStageVariant(row.original.pipelineStage)} dot>
+          {formatStatusLabel(row.original.pipelineStage)}
+        </Badge>
+      ),
+    },
+    {
+      id: "value",
+      header: "Est. value",
+      accessorFn: (r) => (r.estimatedValue ? Number(r.estimatedValue) : 0),
+      cell: ({ row }) => (row.original.estimatedValue ? currency.format(Number(row.original.estimatedValue)) : "—"),
+    },
+  ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Clients &amp; Leads</h1>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800"
-        >
-          {showForm ? "Cancel" : "New client"}
-        </button>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Clients &amp; CRM</h1>
+          <p className="text-sm text-muted-foreground">
+            {loading ? "Loading…" : `${clients.length} clients · ${currency.format(totalPipelineValue)} in pipeline`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-xl border border-border bg-muted/60 p-1">
+            <button onClick={() => setView("kanban")} className={cn("rounded-lg p-1.5", view === "kanban" ? "bg-card shadow-soft" : "text-muted-foreground")}>
+              <KanbanSquare className="h-4 w-4" />
+            </button>
+            <button onClick={() => setView("table")} className={cn("rounded-lg p-1.5", view === "table" ? "bg-card shadow-soft" : "text-muted-foreground")}>
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+          <Button onClick={() => setDialogOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" /> New client
+          </Button>
+        </div>
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={onSubmit}
-          className="grid grid-cols-2 gap-4 rounded-xl border border-steel-200 bg-white p-6"
-        >
-          <input
-            required
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            placeholder="Organization"
-            value={form.organization}
-            onChange={(e) => setForm({ ...form, organization: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            placeholder="Phone"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className={inputClass}
-          />
-          {error && (
-            <p className="col-span-2 rounded-md border border-alert-300 bg-alert-50 px-3 py-2 text-sm font-medium text-black">
-              {error}
-            </p>
-          )}
-          <button
-            type="submit"
-            className="col-span-2 rounded-md bg-safety-500 px-4 py-2 font-semibold text-black hover:bg-safety-600"
-          >
-            Create client
-          </button>
-        </form>
+      {clients.length === 0 && !loading ? (
+        <EmptyState icon={Handshake} title="No clients yet" description="Add your first lead to start tracking the pipeline." action={<Button onClick={() => setDialogOpen(true)}>New client</Button>} />
+      ) : view === "table" ? (
+        <DataTable columns={columns} data={clients} loading={loading} searchPlaceholder="Search clients…" />
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {Object.values(PipelineStage).map((stage) => {
+            const items = clients.filter((c) => c.pipelineStage === stage);
+            return (
+              <div
+                key={stage}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => dragId && updateStage(dragId, stage)}
+                className="flex w-72 shrink-0 flex-col gap-2 rounded-2xl bg-muted/50 p-2.5"
+              >
+                <div className="flex items-center justify-between px-1.5 py-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {formatStatusLabel(stage)}
+                  </span>
+                  <Badge variant="neutral" className="text-[10px]">
+                    {items.length}
+                  </Badge>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {items.map((c) => (
+                    <Card
+                      key={c.id}
+                      draggable
+                      onDragStart={() => setDragId(c.id)}
+                      onDragEnd={() => setDragId(null)}
+                      className="cursor-grab p-3.5 active:cursor-grabbing"
+                    >
+                      <p className="truncate text-sm font-semibold">{c.name}</p>
+                      {c.organization && <p className="truncate text-xs text-muted-foreground">{c.organization}</p>}
+                      <div className="mt-2 flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          {c.email ? <Mail className="h-3 w-3" /> : c.phone ? <Phone className="h-3 w-3" /> : null}
+                          <span className="truncate">{c.email ?? c.phone ?? ""}</span>
+                        </div>
+                        {c.estimatedValue && (
+                          <span className="shrink-0 text-xs font-semibold">{currency.format(Number(c.estimatedValue))}</span>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                  {items.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+                      Drop here
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-steel-200">
-        <table className="w-full text-sm">
-          <thead className="bg-steel-100 text-left">
-            <tr>
-              <th className="px-4 py-3 font-bold">Name</th>
-              <th className="px-4 py-3 font-bold">Organization</th>
-              <th className="px-4 py-3 font-bold">Contact</th>
-              <th className="px-4 py-3 font-bold">Pipeline stage</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {clients.map((c) => (
-              <tr key={c.id} className="border-t border-steel-200">
-                <td className="px-4 py-3 font-medium">{c.name}</td>
-                <td className="px-4 py-3">{c.organization ?? "—"}</td>
-                <td className="px-4 py-3">{c.email ?? c.phone ?? "—"}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Badge color={pipelineStageColor(c.pipelineStage)}>
-                      {formatStatusLabel(c.pipelineStage)}
-                    </Badge>
-                    <select
-                      value={c.pipelineStage}
-                      onChange={(e) => updateStage(c.id, e.target.value as PipelineStage)}
-                      className="rounded-md border border-steel-300 px-2 py-1 text-xs text-black"
-                    >
-                      {Object.values(PipelineStage).map((stage) => (
-                        <option key={stage} value={stage}>
-                          {stage.replaceAll("_", " ")}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {clients.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-steel-600">
-                  No clients yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <NewClientDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={load} />
     </div>
   );
 }

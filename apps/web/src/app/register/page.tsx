@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { LogoMark } from "@/components/ui/logo-mark";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function RegisterPage() {
   const { registerCompany } = useAuth();
@@ -30,71 +33,46 @@ export default function RegisterPage() {
 
   return (
     <main className="blueprint-bg flex min-h-screen items-center justify-center px-6 py-12">
-      <div className="w-full max-w-sm rounded-xl border border-steel-200 bg-white p-8 shadow-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <LogoMark size={32} />
-          <h1 className="text-2xl font-semibold">Create your company</h1>
-        </div>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Company name</label>
-            <input
-              required
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              className="w-full rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            />
+      <Card className="w-full max-w-sm">
+        <CardContent className="p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <LogoMark size={32} />
+            <h1 className="text-2xl font-semibold">Create your company</h1>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Your name</label>
-            <input
-              required
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-              className="w-full rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Password</label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            />
-          </div>
-          {error && (
-            <p className="rounded-md border border-alert-300 bg-alert-50 px-3 py-2 text-sm font-medium text-black">
-              {error}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-md bg-safety-500 px-4 py-2 font-semibold text-black hover:bg-safety-600 disabled:opacity-60"
-          >
-            {submitting ? "Creating…" : "Create company"}
-          </button>
-        </form>
-        <p className="mt-4 text-sm text-black">
-          Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-brand-700 hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
+          <form onSubmit={onSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Company name</label>
+              <Input required value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Your name</label>
+              <Input required value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Email</label>
+              <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Password</label>
+              <Input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            {error && (
+              <p className="rounded-lg border border-danger-100 bg-danger-50 px-3 py-2 text-sm font-medium text-danger-700 dark:border-danger/20 dark:bg-danger/10 dark:text-danger">
+                {error}
+              </p>
+            )}
+            <Button type="submit" loading={submitting} size="lg">
+              Create company
+            </Button>
+          </form>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-primary hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
     </main>
   );
 }

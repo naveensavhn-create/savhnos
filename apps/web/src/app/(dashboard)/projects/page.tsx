@@ -1,168 +1,147 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { apiFetch, ApiError } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { type ColumnDef } from "@tanstack/react-table";
+import { Plus, MapPin, FolderKanban, ArrowRight } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+import { useNewFlag } from "@/lib/use-new-flag";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatStatusLabel, projectStatusColor } from "@/lib/status";
+import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatStatusLabel, projectStatusVariant } from "@/lib/status";
+import { NewProjectDialog } from "./new-project-dialog";
 
 interface Project {
   id: string;
   name: string;
   code: string;
   status: string;
+  budget: string | null;
   address: string | null;
+  client: { name: string } | null;
   geofence: { latitude: number; longitude: number; radiusMeters: number } | null;
+  _count: { assignments: number; tasks: number };
 }
 
-const inputClass =
-  "rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
+const currency = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+
+const columns: ColumnDef<Project>[] = [
+  {
+    accessorKey: "code",
+    header: "Project",
+    cell: ({ row }) => (
+      <Link href={`/projects/${row.original.id}`} className="group flex flex-col">
+        <span className="font-semibold text-foreground group-hover:text-primary">{row.original.name}</span>
+        <span className="font-mono text-xs text-muted-foreground">{row.original.code}</span>
+      </Link>
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => (
+      <Badge variant={projectStatusVariant(row.original.status)} dot>
+        {formatStatusLabel(row.original.status)}
+      </Badge>
+    ),
+  },
+  {
+    id: "client",
+    header: "Client",
+    accessorFn: (row) => row.client?.name ?? "—",
+  },
+  {
+    accessorKey: "budget",
+    header: "Budget",
+    cell: ({ row }) => (row.original.budget ? currency.format(Number(row.original.budget)) : "—"),
+  },
+  {
+    id: "team",
+    header: "Team",
+    accessorFn: (row) => row._count.assignments,
+  },
+  {
+    id: "geofence",
+    header: "Geofence",
+    cell: ({ row }) =>
+      row.original.geofence ? (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <MapPin className="h-3 w-3" /> {row.original.geofence.radiusMeters}m
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">Not set</span>
+      ),
+  },
+  {
+    id: "action",
+    header: "",
+    cell: ({ row }) => (
+      <Link href={`/projects/${row.original.id}`}>
+        <Button variant="ghost" size="icon">
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </Link>
+    ),
+  },
+];
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    code: "",
-    address: "",
-    latitude: "",
-    longitude: "",
-    radiusMeters: "150",
-  });
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openViaQuery = useNewFlag();
 
-  const load = () => apiFetch<Project[]>("/projects").then(setProjects).catch((err) => setError(err.message));
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    try {
-      await apiFetch("/projects", {
-        method: "POST",
-        body: JSON.stringify({
-          name: form.name,
-          code: form.code,
-          address: form.address || undefined,
-          latitude: form.latitude ? Number(form.latitude) : undefined,
-          longitude: form.longitude ? Number(form.longitude) : undefined,
-          radiusMeters: form.radiusMeters ? Number(form.radiusMeters) : undefined,
-        }),
-      });
-      setShowForm(false);
-      setForm({ name: "", code: "", address: "", latitude: "", longitude: "", radiusMeters: "150" });
-      load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create project");
-    }
+  const load = () => {
+    setLoading(true);
+    apiFetch<Project[]>("/projects")
+      .then(setProjects)
+      .finally(() => setLoading(false));
   };
 
+  useEffect(load, []);
+
+  useEffect(() => {
+    if (openViaQuery) setDialogOpen(true);
+  }, [openViaQuery]);
+
+  const activeCount = useMemo(() => projects.filter((p) => p.status === "ACTIVE").length, [projects]);
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Projects</h1>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800"
-        >
-          {showForm ? "Cancel" : "New project"}
-        </button>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
+          <p className="text-sm text-muted-foreground">
+            {loading ? "Loading…" : `${projects.length} projects · ${activeCount} active`}
+          </p>
+        </div>
+        <Button onClick={() => setDialogOpen(true)} className="gap-1.5">
+          <Plus className="h-4 w-4" /> New project
+        </Button>
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={onSubmit}
-          className="grid grid-cols-2 gap-4 rounded-xl border border-steel-200 bg-white p-6"
-        >
-          <input
-            required
-            placeholder="Project name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className={inputClass}
+      <DataTable
+        columns={columns}
+        data={projects}
+        loading={loading}
+        searchPlaceholder="Search projects…"
+        emptyState={
+          <EmptyState
+            icon={FolderKanban}
+            title="No projects yet"
+            description="Create your first project and set its geofence so field attendance works immediately."
+            action={
+              <Button onClick={() => setDialogOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" /> New project
+              </Button>
+            }
           />
-          <input
-            required
-            placeholder="Project code (e.g. SKY-002)"
-            value={form.code}
-            onChange={(e) => setForm({ ...form, code: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            placeholder="Site address"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-            className={`col-span-2 ${inputClass}`}
-          />
-          <input
-            placeholder="Geofence latitude"
-            value={form.latitude}
-            onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            placeholder="Geofence longitude"
-            value={form.longitude}
-            onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-            className={inputClass}
-          />
-          <input
-            placeholder="Radius (meters)"
-            value={form.radiusMeters}
-            onChange={(e) => setForm({ ...form, radiusMeters: e.target.value })}
-            className={inputClass}
-          />
-          {error && (
-            <p className="col-span-2 rounded-md border border-alert-300 bg-alert-50 px-3 py-2 text-sm font-medium text-black">
-              {error}
-            </p>
-          )}
-          <button
-            type="submit"
-            className="col-span-2 rounded-md bg-safety-500 px-4 py-2 font-semibold text-black hover:bg-safety-600"
-          >
-            Create project
-          </button>
-        </form>
-      )}
+        }
+      />
 
-      <div className="overflow-hidden rounded-xl border border-steel-200">
-        <table className="w-full text-sm">
-          <thead className="bg-steel-100 text-left">
-            <tr>
-              <th className="px-4 py-3 font-bold">Code</th>
-              <th className="px-4 py-3 font-bold">Name</th>
-              <th className="px-4 py-3 font-bold">Status</th>
-              <th className="px-4 py-3 font-bold">Geofence</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {projects.map((p) => (
-              <tr key={p.id} className="border-t border-steel-200">
-                <td className="px-4 py-3 font-mono font-semibold">{p.code}</td>
-                <td className="px-4 py-3 font-medium">{p.name}</td>
-                <td className="px-4 py-3">
-                  <Badge color={projectStatusColor(p.status)}>{formatStatusLabel(p.status)}</Badge>
-                </td>
-                <td className="px-4 py-3">
-                  {p.geofence
-                    ? `${p.geofence.latitude.toFixed(4)}, ${p.geofence.longitude.toFixed(4)} (${p.geofence.radiusMeters}m)`
-                    : "Not set"}
-                </td>
-              </tr>
-            ))}
-            {projects.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-steel-600">
-                  No projects yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <NewProjectDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={load} />
     </div>
   );
 }

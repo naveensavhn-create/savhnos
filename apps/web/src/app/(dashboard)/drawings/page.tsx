@@ -1,16 +1,35 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+  Plus,
+  LayoutGrid,
+  List,
+  Ruler,
+  Search,
+  FileStack,
+  Check,
+  X,
+  UploadCloud,
+} from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
+import { useNewFlag } from "@/lib/use-new-flag";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { drawingStatusColor, formatStatusLabel } from "@/lib/status";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input, NativeSelect } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { drawingStatusVariant, formatStatusLabel } from "@/lib/status";
+import { cn } from "@/lib/cn";
 
 interface Project {
   id: string;
   name: string;
   code: string;
 }
-
 interface DrawingRevision {
   id: string;
   versionLabel: string;
@@ -18,7 +37,6 @@ interface DrawingRevision {
   status: string;
   createdAt: string;
 }
-
 interface Drawing {
   id: string;
   title: string;
@@ -26,61 +44,54 @@ interface Drawing {
   revisions: DrawingRevision[];
 }
 
-const inputClass =
-  "rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
+const DISCIPLINES = ["Architectural", "Structural", "Electrical", "MEP"];
 
 export default function DrawingsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [drawings, setDrawings] = useState<Drawing[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [newDrawing, setNewDrawing] = useState({ title: "", discipline: "" });
-  const [revisionInputs, setRevisionInputs] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [search, setSearch] = useState("");
+  const [discipline, setDiscipline] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [activeDrawing, setActiveDrawing] = useState<Drawing | null>(null);
+  const openViaQuery = useNewFlag();
 
   useEffect(() => {
     apiFetch<Project[]>("/projects").then((ps) => {
       setProjects(ps);
-      if (ps.length > 0) setProjectId(ps[0].id);
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = params.get("projectId");
+      if (fromQuery && ps.some((p) => p.id === fromQuery)) setProjectId(fromQuery);
+      else if (ps.length > 0) setProjectId(ps[0].id);
     });
   }, []);
 
-  const loadDrawings = (pid: string) =>
-    apiFetch<Drawing[]>(`/drawings?projectId=${pid}`).then(setDrawings).catch((err) => setError(err.message));
+  const loadDrawings = (pid: string) => {
+    setLoading(true);
+    apiFetch<Drawing[]>(`/drawings?projectId=${pid}`)
+      .then(setDrawings)
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     if (projectId) loadDrawings(projectId);
   }, [projectId]);
 
-  const createDrawing = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    try {
-      await apiFetch("/drawings", {
-        method: "POST",
-        body: JSON.stringify({ projectId, title: newDrawing.title, discipline: newDrawing.discipline || undefined }),
-      });
-      setNewDrawing({ title: "", discipline: "" });
-      loadDrawings(projectId);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create drawing");
-    }
-  };
+  useEffect(() => {
+    if (openViaQuery) setNewOpen(true);
+  }, [openViaQuery]);
 
-  const uploadRevision = async (drawingId: string) => {
-    const fileUrl = revisionInputs[drawingId];
-    if (!fileUrl) return;
-    const versionLabel = `Rev-${new Date().toISOString().slice(0, 10)}`;
-    try {
-      await apiFetch(`/drawings/${drawingId}/revisions`, {
-        method: "POST",
-        body: JSON.stringify({ versionLabel, fileUrl }),
-      });
-      setRevisionInputs((prev) => ({ ...prev, [drawingId]: "" }));
-      loadDrawings(projectId);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to upload revision");
-    }
-  };
+  const filtered = useMemo(
+    () =>
+      drawings.filter(
+        (d) =>
+          d.title.toLowerCase().includes(search.toLowerCase()) &&
+          (!discipline || d.discipline === discipline)
+      ),
+    [drawings, search, discipline]
+  );
 
   const review = async (revisionId: string, decision: "APPROVED" | "REJECTED") => {
     try {
@@ -88,142 +99,300 @@ export default function DrawingsPage() {
         method: "POST",
         body: JSON.stringify({ decision }),
       });
+      toast.success(decision === "APPROVED" ? "Revision approved" : "Revision rejected");
       loadDrawings(projectId);
+      setActiveDrawing(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to review revision");
+      toast.error(err instanceof ApiError ? err.message : "Failed to review revision");
     }
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Drawings</h1>
-        <select
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-          className={inputClass}
-        >
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.code} — {p.name}
-            </option>
-          ))}
-        </select>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Drawings</h1>
+          <p className="text-sm text-muted-foreground">{loading ? "Loading…" : `${drawings.length} drawings in this project`}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <NativeSelect value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-56">
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.code} — {p.name}
+              </option>
+            ))}
+          </NativeSelect>
+          <div className="flex rounded-xl border border-border bg-muted/60 p-1">
+            <button onClick={() => setView("grid")} className={cn("rounded-lg p-1.5", view === "grid" ? "bg-card shadow-soft" : "text-muted-foreground")}>
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button onClick={() => setView("list")} className={cn("rounded-lg p-1.5", view === "list" ? "bg-card shadow-soft" : "text-muted-foreground")}>
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+          <Button onClick={() => setNewOpen(true)} disabled={!projectId} className="gap-1.5">
+            <Plus className="h-4 w-4" /> New drawing
+          </Button>
+        </div>
       </div>
 
-      {error && (
-        <p className="rounded-md border border-alert-300 bg-alert-50 px-3 py-2 text-sm font-medium text-black">
-          {error}
-        </p>
-      )}
-
-      {projectId && (
-        <form
-          onSubmit={createDrawing}
-          className="flex flex-wrap items-end gap-3 rounded-xl border border-steel-200 bg-white p-6"
-        >
-          <div>
-            <label className="mb-1 block text-sm font-medium">Drawing title</label>
-            <input
-              required
-              value={newDrawing.title}
-              onChange={(e) => setNewDrawing({ ...newDrawing, title: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Discipline</label>
-            <input
-              placeholder="Architecture / Structural / MEP"
-              value={newDrawing.discipline}
-              onChange={(e) => setNewDrawing({ ...newDrawing, discipline: e.target.value })}
-              className={inputClass}
-            />
-          </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative max-w-xs flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search drawings…" className="pl-9" />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
           <button
-            type="submit"
-            className="rounded-md bg-safety-500 px-4 py-2 font-semibold text-black hover:bg-safety-600"
+            onClick={() => setDiscipline(null)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              discipline === null ? "border-primary-300 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300" : "border-border text-muted-foreground hover:bg-accent"
+            )}
           >
-            Add drawing
+            All
           </button>
-        </form>
+          {DISCIPLINES.map((d) => (
+            <button
+              key={d}
+              onClick={() => setDiscipline(d)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                discipline === d ? "border-primary-300 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300" : "border-border text-muted-foreground hover:bg-accent"
+              )}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Ruler}
+          title="No drawings found"
+          description="Upload your first drawing revision for this project."
+          action={
+            <Button onClick={() => setNewOpen(true)} disabled={!projectId}>
+              New drawing
+            </Button>
+          }
+        />
+      ) : view === "grid" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((d) => {
+            const latest = d.revisions[0];
+            return (
+              <Card key={d.id} className="cursor-pointer overflow-hidden transition-shadow hover:shadow-popover" onClick={() => setActiveDrawing(d)}>
+                <div className="flex h-28 items-center justify-center bg-gradient-to-br from-primary-50 to-muted dark:from-primary-900/20">
+                  <Ruler className="h-9 w-9 text-primary-400" strokeWidth={1.5} />
+                </div>
+                <CardContent className="p-4">
+                  <p className="truncate font-semibold">{d.title}</p>
+                  <p className="text-xs text-muted-foreground">{d.discipline ?? "General"}</p>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <FileStack className="h-3.5 w-3.5" /> {d.revisions.length} revision{d.revisions.length === 1 ? "" : "s"}
+                    </span>
+                    {latest && (
+                      <Badge variant={drawingStatusVariant(latest.status)} dot>
+                        {formatStatusLabel(latest.status)}
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filtered.map((d) => (
+            <Card key={d.id} className="p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">{d.title}</p>
+                  <p className="text-xs text-muted-foreground">{d.discipline ?? "General"}</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setActiveDrawing(d)} className="gap-1.5">
+                  <UploadCloud className="h-3.5 w-3.5" /> Manage
+                </Button>
+              </div>
+              <ul className="divide-y divide-border">
+                {d.revisions.map((r) => (
+                  <li key={r.id} className="flex items-center justify-between py-2 text-sm">
+                    <span>{r.versionLabel}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString()}</span>
+                      <Badge variant={drawingStatusVariant(r.status)} dot>
+                        {formatStatusLabel(r.status)}
+                      </Badge>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ))}
+        </div>
       )}
 
-      <div className="flex flex-col gap-4">
-        {drawings.map((d) => (
-          <div key={d.id} className="rounded-xl border border-steel-200 bg-white p-6">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <div className="font-semibold">{d.title}</div>
-                {d.discipline && <div className="text-sm text-steel-600">{d.discipline}</div>}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  placeholder="File URL for new revision"
-                  value={revisionInputs[d.id] ?? ""}
-                  onChange={(e) => setRevisionInputs((prev) => ({ ...prev, [d.id]: e.target.value }))}
-                  className={`w-64 text-sm ${inputClass}`}
-                />
-                <button
-                  onClick={() => uploadRevision(d.id)}
-                  className="rounded-md border border-steel-300 px-3 py-2 text-sm font-semibold text-black hover:bg-steel-100"
-                >
-                  Upload revision
-                </button>
-              </div>
-            </div>
-            <table className="w-full text-sm">
-              <thead className="text-left">
-                <tr>
-                  <th className="py-1 pr-4 font-bold">Version</th>
-                  <th className="py-1 pr-4 font-bold">Status</th>
-                  <th className="py-1 pr-4 font-bold">Uploaded</th>
-                  <th className="py-1 pr-4 font-bold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.revisions.map((r) => (
-                  <tr key={r.id} className="border-t border-steel-100">
-                    <td className="py-2 pr-4">{r.versionLabel}</td>
-                    <td className="py-2 pr-4">
-                      <Badge color={drawingStatusColor(r.status)}>{formatStatusLabel(r.status)}</Badge>
-                    </td>
-                    <td className="py-2 pr-4">{new Date(r.createdAt).toLocaleDateString()}</td>
-                    <td className="py-2 pr-4">
-                      {r.status === "IN_REVIEW" && (
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => review(r.id, "APPROVED")}
-                            className="font-semibold text-brand-700 hover:underline"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => review(r.id, "REJECTED")}
-                            className="font-semibold text-alert-700 hover:underline"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {d.revisions.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-2 text-steel-500">
-                      No revisions uploaded yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        ))}
-        {drawings.length === 0 && projectId && (
-          <p className="text-steel-600">No drawings for this project yet.</p>
-        )}
-      </div>
+      <NewDrawingDialog projectId={projectId} open={newOpen} onOpenChange={setNewOpen} onCreated={() => loadDrawings(projectId)} />
+
+      <Dialog open={!!activeDrawing} onOpenChange={(open) => !open && setActiveDrawing(null)}>
+        <DialogContent className="max-w-lg">
+          {activeDrawing && (
+            <DrawingManagePanel
+              drawing={activeDrawing}
+              onUploaded={() => {
+                loadDrawings(projectId);
+                setActiveDrawing(null);
+              }}
+              onReview={review}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function DrawingManagePanel({
+  drawing,
+  onUploaded,
+  onReview,
+}: {
+  drawing: Drawing;
+  onUploaded: () => void;
+  onReview: (revisionId: string, decision: "APPROVED" | "REJECTED") => void;
+}) {
+  const [fileUrl, setFileUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const upload = async () => {
+    if (!fileUrl) return;
+    setSubmitting(true);
+    try {
+      await apiFetch(`/drawings/${drawing.id}/revisions`, {
+        method: "POST",
+        body: JSON.stringify({ versionLabel: `Rev-${new Date().toISOString().slice(0, 10)}`, fileUrl }),
+      });
+      toast.success("Revision uploaded");
+      setFileUrl("");
+      onUploaded();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to upload revision");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{drawing.title}</DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-2">
+          <Input placeholder="File URL for new revision" value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} />
+          <Button onClick={upload} loading={submitting} disabled={!fileUrl}>
+            Upload
+          </Button>
+        </div>
+        <ul className="divide-y divide-border">
+          {drawing.revisions.map((r) => (
+            <li key={r.id} className="flex items-center justify-between py-2.5 text-sm">
+              <div>
+                <p className="font-medium">{r.versionLabel}</p>
+                <p className="text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleString()}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant={drawingStatusVariant(r.status)} dot>
+                  {formatStatusLabel(r.status)}
+                </Badge>
+                {r.status === "IN_REVIEW" && (
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="success" className="h-7 w-7" onClick={() => onReview(r.id, "APPROVED")}>
+                      <Check className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="danger" className="h-7 w-7" onClick={() => onReview(r.id, "REJECTED")}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+          {drawing.revisions.length === 0 && <p className="py-4 text-sm text-muted-foreground">No revisions yet.</p>}
+        </ul>
+      </div>
+    </>
+  );
+}
+
+function NewDrawingDialog({
+  projectId,
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  projectId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [drawingDiscipline, setDrawingDiscipline] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!title || !projectId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiFetch("/drawings", {
+        method: "POST",
+        body: JSON.stringify({ projectId, title, discipline: drawingDiscipline || undefined }),
+      });
+      toast.success("Drawing created");
+      setTitle("");
+      setDrawingDiscipline("");
+      onOpenChange(false);
+      onCreated();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to create drawing");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New drawing</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <Input placeholder="Drawing title" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <NativeSelect value={drawingDiscipline} onChange={(e) => setDrawingDiscipline(e.target.value)}>
+            <option value="">Select discipline…</option>
+            {DISCIPLINES.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </NativeSelect>
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <Button onClick={submit} loading={submitting} disabled={!title}>
+            Create drawing
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

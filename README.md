@@ -66,6 +66,10 @@ accept and reject paths of the geofence check.
   register/login, a stat-card dashboard, and CRUD-ish pages for projects
   (incl. geofence fields), employees, clients, drawings, and an attendance
   page that uses the browser's Geolocation API to actually clock in/out.
+- **Premium design system + app shell** — see "Frontend design system"
+  below for the full rebuild: collapsible sidebar, Ctrl+K command palette,
+  real charts, a proper data table, dark mode, and a flagship project
+  detail page.
 
 ### Explicitly not built (roadmap)
 
@@ -78,6 +82,55 @@ company chat/video calls, WhatsApp/Teams/Slack notifications, the Flutter
 mobile app, SSO/MFA/biometric login, and BIM/drone/AR/IoT integrations.
 The schema and module structure are built so these can be added as new
 Nest modules + Prisma models without restructuring what's here.
+
+## Frontend design system
+
+The web app was rebuilt as a proper enterprise SaaS product (Linear/Vercel/
+Stripe-Dashboard register), not a themed admin template — backend APIs,
+business logic and the Prisma schema were untouched; this was a frontend +
+component-architecture pass only.
+
+**Design tokens** (`apps/web/tailwind.config.ts`, `globals.css`): HSL CSS
+variables for `background`/`foreground`/`card`/`border`/`primary`/
+`success`/`warning`/`danger`/`info`, switched by `next-themes` via a `.dark`
+class — light and dark are both first-class, dark uses a charcoal palette
+(`hsl(222 18% 9%)`), never pure black. Inter via `next/font`, 14–18px radius
+scale, soft/card/popover shadow tokens.
+
+**Component library** (`apps/web/src/components/ui`): Button, Card, Badge,
+Avatar (deterministic color + initials), Input/Textarea/NativeSelect,
+Skeleton (+ SkeletonCard/SkeletonTable), EmptyState, Tabs/Dialog/
+DropdownMenu/Tooltip (Radix primitives, styled), StatCard (animated count-up,
+sparkline, trend arrow, recharts), and a generic `DataTable` (TanStack Table:
+sorting, global search, column visibility, pagination).
+
+**App shell** (`apps/web/src/components/app-shell`): collapsible/animated
+sidebar (Framer Motion) with grouped nav, active-route indicator, live badge
+counts (pending drawing reviews), pinned favorites + recently-visited
+(localStorage-backed, real), and a footer showing live API online/offline
+status. Top nav has workspace switcher (reads `/company/me`), global search
+that opens a Ctrl+K **command palette** (`cmdk`) searching pages plus live
+projects/employees/clients, a notifications dropdown driven by real pending
+counts, quick-create menu, theme toggle, and an avatar menu.
+
+**Rebuilt pages, still hitting the same endpoints**: Dashboard (real KPIs +
+recharts donut/bar from live project/employee data, a "who's working today"
+widget that gracefully degrades to a personal view for non-privileged
+roles since `/attendance/today` is RBAC-gated), Projects (list +
+flagship `/projects/[id]` detail page with header facts, tabs, geofence/
+assign dialogs), Employees (card grid ⇄ table toggle, detail drawer),
+Clients (drag-and-drop pipeline kanban, native HTML5 DnD, PATCHes the real
+stage), Drawings (grid/list, discipline filters, upload/approve/reject),
+Attendance (live roster + history table), and a new **Approvals** inbox
+that aggregates pending drawing reviews across every project client-side
+(no new backend endpoint needed).
+
+**Honesty over decoration**: nav sections with no backing API (Finance
+depth, HRMS payroll/recruitment, Procurement, Inventory, Documents,
+Reports, AI Assistant) render a shared `ComingSoon` component that states
+plainly what's needed to build them, rather than showing fabricated charts
+or numbers. They're marked "Soon" in the sidebar and "Roadmap" on the page
+itself.
 
 ## Architecture
 
@@ -93,7 +146,10 @@ packages/
   Passport JWT strategy.
 - **Frontend**: Next.js App Router, Tailwind CSS, plain `fetch` against the
   API (no heavier data-fetching layer yet — swap in React Query when the
-  surface grows).
+  surface grows), Radix UI + `cva` for the component primitives, TanStack
+  Table for data grids, recharts for charts, Framer Motion for animation,
+  `cmdk` for the command palette, `next-themes` for dark mode, `sonner`
+  for toasts.
 - **Multi-tenancy**: every query is scoped by `companyId` taken from the
   JWT payload, not from client-supplied input.
 
@@ -142,3 +198,11 @@ together. Run migrations against the containerized Postgres the first time
 - No automated test suite yet (unit or e2e) — the modules above were
   verified with a live Postgres instance and manual API calls, documented
   in this PR/commit, but there's no regression safety net checked in.
+- `recharts@2.x` is in maintenance mode (v3 is current); worth a deliberate
+  upgrade + re-test of the dashboard charts rather than bundling into a
+  larger change.
+- The pipeline kanban and command palette are functional but not yet
+  covered by tests, and the Approvals page does an N+1 fetch (one
+  `/drawings?projectId=` call per project) to aggregate pending reviews —
+  fine at seed-data scale, worth a dedicated "pending approvals" backend
+  endpoint if the project count grows large.

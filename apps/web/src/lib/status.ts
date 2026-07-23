@@ -1,56 +1,71 @@
-export type StatusColor = "gray" | "blue" | "orange" | "red";
+export type StatusVariant = "neutral" | "primary" | "success" | "warning" | "danger" | "info";
 
-const PROJECT_STATUS_COLOR: Record<string, StatusColor> = {
-  LEAD: "gray",
-  PLANNING: "orange",
-  ACTIVE: "blue",
-  DELAYED: "red",
-  ON_HOLD: "orange",
-  COMPLETED: "gray",
-  HANDED_OVER: "gray",
+const PROJECT_STATUS_VARIANT: Record<string, StatusVariant> = {
+  LEAD: "neutral",
+  PLANNING: "warning",
+  ACTIVE: "primary",
+  DELAYED: "danger",
+  ON_HOLD: "warning",
+  COMPLETED: "success",
+  HANDED_OVER: "neutral",
 };
 
-const DRAWING_STATUS_COLOR: Record<string, StatusColor> = {
-  DRAFT: "gray",
-  IN_REVIEW: "orange",
-  APPROVED: "blue",
-  REJECTED: "red",
-  SUPERSEDED: "gray",
+const DRAWING_STATUS_VARIANT: Record<string, StatusVariant> = {
+  DRAFT: "neutral",
+  IN_REVIEW: "warning",
+  APPROVED: "success",
+  REJECTED: "danger",
+  SUPERSEDED: "neutral",
 };
 
-const PIPELINE_STAGE_COLOR: Record<string, StatusColor> = {
-  LEAD: "gray",
-  SITE_VISIT: "orange",
-  PROPOSAL: "orange",
-  QUOTATION: "orange",
-  NEGOTIATION: "orange",
-  WON: "blue",
-  LOST: "red",
+const PIPELINE_STAGE_VARIANT: Record<string, StatusVariant> = {
+  LEAD: "neutral",
+  SITE_VISIT: "info",
+  PROPOSAL: "info",
+  QUOTATION: "warning",
+  NEGOTIATION: "warning",
+  WON: "success",
+  LOST: "danger",
 };
 
-const EMPLOYMENT_STATUS_COLOR: Record<string, StatusColor> = {
-  ACTIVE: "blue",
-  ON_LEAVE: "orange",
-  SUSPENDED: "red",
-  EXITED: "gray",
+const EMPLOYMENT_STATUS_VARIANT: Record<string, StatusVariant> = {
+  ACTIVE: "success",
+  ON_LEAVE: "warning",
+  SUSPENDED: "danger",
+  EXITED: "neutral",
 };
 
-export function projectStatusColor(status: string): StatusColor {
-  return PROJECT_STATUS_COLOR[status] ?? "gray";
+const TASK_STATUS_VARIANT: Record<string, StatusVariant> = {
+  TODO: "neutral",
+  IN_PROGRESS: "primary",
+  IN_REVIEW: "warning",
+  DONE: "success",
+  BLOCKED: "danger",
+};
+
+export function projectStatusVariant(status: string): StatusVariant {
+  return PROJECT_STATUS_VARIANT[status] ?? "neutral";
 }
 
-export function drawingStatusColor(status: string): StatusColor {
-  return DRAWING_STATUS_COLOR[status] ?? "gray";
+export function drawingStatusVariant(status: string): StatusVariant {
+  return DRAWING_STATUS_VARIANT[status] ?? "neutral";
 }
 
-export function pipelineStageColor(stage: string): StatusColor {
-  return PIPELINE_STAGE_COLOR[stage] ?? "gray";
+export function pipelineStageVariant(stage: string): StatusVariant {
+  return PIPELINE_STAGE_VARIANT[stage] ?? "neutral";
 }
 
-export function employmentStatusColor(status: string): StatusColor {
-  return EMPLOYMENT_STATUS_COLOR[status] ?? "gray";
+export function employmentStatusVariant(status: string): StatusVariant {
+  return EMPLOYMENT_STATUS_VARIANT[status] ?? "neutral";
+}
+
+export function taskStatusVariant(status: string): StatusVariant {
+  return TASK_STATUS_VARIANT[status] ?? "neutral";
 }
 
 export function formatStatusLabel(status: string): string {
-  return status.replaceAll("_", " ");
+  return status
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
