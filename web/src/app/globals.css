@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 97%;
+    --muted-foreground: 215 16% 46%;
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 83% 14%;
+
+    --danger: 0 84% 60%;
+    --danger-foreground: 0 0% 100%;
+
+    --info: 239 84% 67%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+
+    --radius: 1rem;
+  }
+
+  :root[data-theme="dark"],
+  .dark {
+    color-scheme: dark;
+
+    --background: 222 18% 9%;
+    --foreground: 210 20% 96%;
+
+    --card: 222 16% 12%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 222 16% 12%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 217 91% 62%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 222 14% 18%;
+    --secondary-foreground: 210 20% 96%;
+
+    --muted: 222 14% 16%;
+    --muted-foreground: 217 12% 65%;
+
+    --accent: 222 14% 18%;
+    --accent-foreground: 210 20% 96%;
+
+    --success: 160 70% 45%;
+    --success-foreground: 222 47% 11%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 26 83% 14%;
+
+    --danger: 0 84% 65%;
+    --danger-foreground: 222 47% 11%;
+
+    --info: 239 84% 72%;
+    --info-foreground: 222 47% 11%;
+
+    --border: 222 14% 20%;
+    --input: 222 14% 20%;
+    --ring: 217 91% 62%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply bg-background;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+}
+
+.blueprint-bg {
+  @apply bg-blueprint bg-white;
+  background-position: center;
+}
+
+.dark .blueprint-bg {
+  background-color: hsl(var(--background));
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-muted-foreground/20;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/30;
+}
