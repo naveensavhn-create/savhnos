@@ -1,0 +1,21 @@
+{
+  "name": "savhnos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Enterprise SaaS ERP + HRMS + Project Management platform for construction, architecture and interior design companies",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "prisma:generate": "npm run prisma:generate --workspace=apps/api",
+    "prisma:migrate": "npm run prisma:migrate --workspace=apps/api",
+    "prisma:seed": "npm run prisma:seed --workspace=apps/api"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

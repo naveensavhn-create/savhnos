@@ -1,0 +1,489 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Multi-company / multi-tenant core
+// ─────────────────────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String?
+  gstNumber String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branches  Branch[]
+  users     User[]
+  employees Employee[]
+  clients   Client[]
+  projects  Project[]
+  invoices  Invoice[]
+  expenses  Expense[]
+  documents Document[]
+  auditLogs AuditLog[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  city      String?
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  employees Employee[]
+
+  @@index([companyId])
+}
+
+enum UserRole {
+  OWNER
+  SUPER_ADMIN
+  HR
+  ARCHITECT
+  SITE_ENGINEER
+  DRAFTING_ENGINEER
+  INTERIOR_DESIGNER
+  PROJECT_ENGINEER
+  ACCOUNTANT
+  QC_ENGINEER
+  CLIENT
+  EMPLOYEE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employee       Employee?
+  clientProfile  Client?          @relation("ClientUser")
+  drawingReviews DrawingReview[]
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+
+  @@index([companyId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// HRMS
+// ─────────────────────────────────────────────────────────────────────────
+
+enum EmploymentStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  EXITED
+}
+
+model Employee {
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?          @relation(fields: [branchId], references: [id])
+  employeeCode    String
+  designation     String?
+  department      String?
+  dateOfJoining   DateTime?
+  status          EmploymentStatus @default(ACTIVE)
+  phone           String?
+  monthlySalary   Decimal?         @db.Decimal(14, 2)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  attendances        Attendance[]
+  projectAssignments ProjectAssignment[]
+  leaveRequests       LeaveRequest[]
+  taskAssignees        Task[]           @relation("TaskAssignee")
+
+  @@unique([companyId, employeeCode])
+  @@index([companyId])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id         String      @id @default(cuid())
+  employeeId String
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  fromDate   DateTime
+  toDate     DateTime
+  reason     String?
+  status     LeaveStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+
+  @@index([employeeId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Projects + Geofencing
+// ─────────────────────────────────────────────────────────────────────────
+
+enum ProjectStatus {
+  LEAD
+  PLANNING
+  ACTIVE
+  DELAYED
+  ON_HOLD
+  COMPLETED
+  HANDED_OVER
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId     String?
+  client       Client?       @relation(fields: [clientId], references: [id])
+  name         String
+  code         String
+  status       ProjectStatus @default(PLANNING)
+  budget       Decimal?      @db.Decimal(14, 2)
+  startDate    DateTime?
+  targetEndDate DateTime?
+  address      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  geofence    ProjectGeofence?
+  assignments ProjectAssignment[]
+  tasks       Task[]
+  drawings    Drawing[]
+  invoices    Invoice[]
+  expenses    Expense[]
+  documents   Document[]
+  siteReports SiteReport[]
+  attendances Attendance[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([clientId])
+}
+
+/// One geofence per project, defining the soft-geofenced attendance zone.
+model ProjectGeofence {
+  id                 String   @id @default(cuid())
+  projectId          String   @unique
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  latitude            Float
+  longitude           Float
+  radiusMeters        Int      @default(150)
+  softToleranceMeters Int      @default(100)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model ProjectAssignment {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  roleOnSite String?
+  assignedAt DateTime @default(now())
+
+  @@unique([projectId, employeeId])
+  @@index([employeeId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Attendance (office + geofenced field)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum AttendanceMethod {
+  OFFICE_WIFI
+  DESKTOP_LOGIN
+  QR_SCAN
+  GEOFENCE
+  ADMIN_OVERRIDE
+}
+
+model Attendance {
+  id                String            @id @default(cuid())
+  employeeId        String
+  employee          Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  projectId         String?
+  project            Project?          @relation(fields: [projectId], references: [id])
+  method            AttendanceMethod  @default(GEOFENCE)
+  clockInAt         DateTime          @default(now())
+  clockOutAt        DateTime?
+  clockInLat        Float?
+  clockInLng        Float?
+  clockOutLat       Float?
+  clockOutLng       Float?
+  distanceMeters    Float?
+  withinGeofence    Boolean           @default(true)
+  overriddenByAdmin Boolean           @default(false)
+  notes             String?
+
+  @@index([employeeId])
+  @@index([projectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CRM: Clients + Leads
+// ─────────────────────────────────────────────────────────────────────────
+
+enum PipelineStage {
+  LEAD
+  SITE_VISIT
+  PROPOSAL
+  QUOTATION
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Client {
+  id            String        @id @default(cuid())
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  email         String?
+  phone         String?
+  organization  String?
+  pipelineStage PipelineStage @default(LEAD)
+  estimatedValue Decimal?     @db.Decimal(14, 2)
+  portalUserId  String?       @unique
+  portalUser    User?         @relation("ClientUser", fields: [portalUserId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  projects Project[]
+  invoices Invoice[]
+
+  @@index([companyId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tasks / Project Management
+// ─────────────────────────────────────────────────────────────────────────
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  BLOCKED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id         String       @id @default(cuid())
+  projectId  String
+  project    Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title      String
+  description String?
+  status     TaskStatus   @default(TODO)
+  priority   TaskPriority @default(MEDIUM)
+  assigneeId String?
+  assignee   Employee?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  dueDate    DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([projectId])
+  @@index([assigneeId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Drawing Management + Approval Workflow
+// ─────────────────────────────────────────────────────────────────────────
+
+enum DrawingStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+model Drawing {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String
+  discipline String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  revisions DrawingRevision[]
+
+  @@index([projectId])
+}
+
+model DrawingRevision {
+  id            String        @id @default(cuid())
+  drawingId     String
+  drawing       Drawing       @relation(fields: [drawingId], references: [id], onDelete: Cascade)
+  versionLabel  String
+  fileUrl       String
+  fileType      String?
+  status        DrawingStatus @default(DRAFT)
+  uploadedById  String?
+  createdAt     DateTime      @default(now())
+
+  reviews DrawingReview[]
+
+  @@unique([drawingId, versionLabel])
+  @@index([drawingId])
+}
+
+model DrawingReview {
+  id                String        @id @default(cuid())
+  drawingRevisionId String
+  drawingRevision   DrawingRevision @relation(fields: [drawingRevisionId], references: [id], onDelete: Cascade)
+  reviewerId        String
+  reviewer          User          @relation(fields: [reviewerId], references: [id])
+  decision          DrawingStatus
+  comments          String?
+  createdAt         DateTime      @default(now())
+
+  @@index([drawingRevisionId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Accounting
+// ─────────────────────────────────────────────────────────────────────────
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?      @relation(fields: [projectId], references: [id])
+  clientId    String?
+  client      Client?       @relation(fields: [clientId], references: [id])
+  invoiceNumber String
+  amount      Decimal       @db.Decimal(14, 2)
+  taxAmount   Decimal       @default(0) @db.Decimal(14, 2)
+  status      InvoiceStatus @default(DRAFT)
+  dueDate     DateTime?
+  issuedAt    DateTime      @default(now())
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId])
+  @@index([projectId])
+}
+
+enum ExpenseCategory {
+  MATERIAL
+  LABOR
+  EQUIPMENT
+  TRAVEL
+  MISC
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  companyId   String
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?        @relation(fields: [projectId], references: [id])
+  category    ExpenseCategory @default(MISC)
+  description String?
+  amount      Decimal         @db.Decimal(14, 2)
+  incurredAt  DateTime        @default(now())
+
+  @@index([companyId])
+  @@index([projectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Documents, Site Reports, Notifications, Audit
+// ─────────────────────────────────────────────────────────────────────────
+
+model Document {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  name      String
+  fileUrl   String
+  folder    String?
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([projectId])
+}
+
+model SiteReport {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reportDate   DateTime @default(now())
+  weather      String?
+  progressPct  Int?
+  laborCount   Int?
+  materialNotes String?
+  issues       String?
+  nextDayPlan  String?
+  photoUrls    String[]
+  createdAt    DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
