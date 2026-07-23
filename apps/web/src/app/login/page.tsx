@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
+import { LogoMark } from "@/components/ui/logo-mark";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -26,9 +27,12 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h1 className="mb-6 text-2xl font-semibold">Sign in</h1>
+    <main className="blueprint-bg flex min-h-screen items-center justify-center px-6">
+      <div className="w-full max-w-sm rounded-xl border border-steel-200 bg-white p-8 shadow-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <LogoMark size={32} />
+          <h1 className="text-2xl font-semibold">Sign in</h1>
+        </div>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div>
             <label className="mb-1 block text-sm font-medium">Email</label>
@@ -37,7 +41,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+              className="w-full rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -47,21 +51,25 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+              className="w-full rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="rounded-md border border-alert-300 bg-alert-50 px-3 py-2 text-sm font-medium text-black">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-brand-600 px-4 py-2 font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
+            className="rounded-md bg-brand-700 px-4 py-2 font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
-        <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-4 text-sm text-black">
           New company?{" "}
-          <Link href="/register" className="font-medium text-brand-600">
+          <Link href="/register" className="font-semibold text-brand-700 hover:underline">
             Create one
           </Link>
         </p>

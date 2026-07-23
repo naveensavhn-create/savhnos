@@ -3,9 +3,32 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+html {
+  @apply bg-steel-50;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  @apply bg-steel-50 text-black antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+label,
+th,
+td,
+li {
+  @apply text-black;
+}
+
+.blueprint-bg {
+  @apply bg-blueprint bg-blueprint bg-white;
+  background-position: center;
 }

@@ -2,22 +2,68 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
-  darkMode: "class",
   theme: {
     extend: {
       colors: {
+        // Blueprint blue — primary brand / active / informational.
         brand: {
-          50: "#eef4ff",
-          100: "#d9e6ff",
-          200: "#b3ccff",
-          300: "#80a8ff",
-          400: "#4d7fff",
-          500: "#2456f5",
-          600: "#1a3fd1",
-          700: "#152fa6",
-          800: "#132582",
-          900: "#131f66",
+          50: "#eff6ff",
+          100: "#dbeafe",
+          200: "#bfdbfe",
+          300: "#93c5fd",
+          400: "#60a5fa",
+          500: "#3b82f6",
+          600: "#2563eb",
+          700: "#1d4ed8",
+          800: "#1e40af",
+          900: "#1e3a8a",
         },
+        // Steel grey — structure, neutral, secondary.
+        steel: {
+          50: "#f8fafc",
+          100: "#f1f5f9",
+          200: "#e2e8f0",
+          300: "#cbd5e1",
+          400: "#94a3b8",
+          500: "#64748b",
+          600: "#475569",
+          700: "#334155",
+          800: "#1e293b",
+          900: "#0f172a",
+        },
+        // Safety orange — call to action, needs-attention, in-progress.
+        safety: {
+          50: "#fff7ed",
+          100: "#ffedd5",
+          200: "#fed7aa",
+          300: "#fdba74",
+          400: "#fb923c",
+          500: "#f97316",
+          600: "#ea580c",
+          700: "#c2410c",
+          800: "#9a3412",
+          900: "#7c2d12",
+        },
+        // Alert red — danger, delayed, rejected, critical.
+        alert: {
+          50: "#fef2f2",
+          100: "#fee2e2",
+          200: "#fecaca",
+          300: "#fca5a5",
+          400: "#f87171",
+          500: "#ef4444",
+          600: "#dc2626",
+          700: "#b91c1c",
+          800: "#991b1b",
+          900: "#7f1d1d",
+        },
+      },
+      backgroundImage: {
+        blueprint:
+          "linear-gradient(rgba(30,58,138,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(30,58,138,0.08) 1px, transparent 1px)",
+      },
+      backgroundSize: {
+        blueprint: "32px 32px",
       },
     },
   },

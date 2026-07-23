@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { LogoMark } from "@/components/ui/logo-mark";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -26,32 +27,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return <div className="flex min-h-screen items-center justify-center">Loading…</div>;
+    return <div className="flex min-h-screen items-center justify-center text-black">Loading…</div>;
   }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-64 flex-col border-r border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        <div className="mb-8 px-2 text-xl font-bold text-brand-600">savhnos</div>
+    <div className="flex min-h-screen bg-steel-50">
+      <aside className="flex w-64 flex-col border-r border-steel-200 bg-white p-4">
+        <div className="mb-8 flex items-center gap-2.5 px-2">
+          <LogoMark size={30} />
+          <span className="text-lg font-bold tracking-tight text-black">savhnos</span>
+        </div>
         <nav className="flex flex-1 flex-col gap-1">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`rounded-md px-3 py-2 text-sm font-medium ${
+              className={`rounded-md border-l-4 px-3 py-2 text-sm font-semibold ${
                 pathname === item.href
-                  ? "bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200"
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  ? "border-brand-700 bg-brand-50 text-black"
+                  : "border-transparent text-black hover:bg-steel-100"
               }`}
             >
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className="border-t border-slate-200 pt-4 text-sm dark:border-slate-800">
-          <div className="font-medium">{user.email}</div>
-          <div className="mb-3 text-slate-500">{user.role}</div>
-          <button onClick={logout} className="text-brand-600 hover:underline">
+        <div className="border-t border-steel-200 pt-4 text-sm">
+          <div className="font-semibold text-black">{user.email}</div>
+          <div className="mb-3 inline-flex rounded-full bg-steel-100 px-2 py-0.5 text-xs font-semibold text-black">
+            {user.role.replaceAll("_", " ")}
+          </div>
+          <button
+            onClick={logout}
+            className="block font-semibold text-alert-700 hover:underline"
+          >
             Sign out
           </button>
         </div>

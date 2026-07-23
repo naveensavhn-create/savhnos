@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { UserRole } from "@savhnos/shared";
+import { Badge } from "@/components/ui/badge";
+import { employmentStatusColor, formatStatusLabel } from "@/lib/status";
 
 interface Employee {
   id: string;
@@ -12,6 +14,9 @@ interface Employee {
   status: string;
   user: { name: string; email: string; role: string };
 }
+
+const inputClass =
+  "rounded-md border border-steel-300 px-3 py-2 text-black focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -50,10 +55,10 @@ export default function EmployeesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Employees</h1>
+        <h1 className="text-2xl font-bold">Employees</h1>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+          className="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800"
         >
           {showForm ? "Cancel" : "Add employee"}
         </button>
@@ -62,14 +67,14 @@ export default function EmployeesPage() {
       {showForm && (
         <form
           onSubmit={onSubmit}
-          className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"
+          className="grid grid-cols-2 gap-4 rounded-xl border border-steel-200 bg-white p-6"
         >
           <input
             required
             placeholder="Full name"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+            className={inputClass}
           />
           <input
             required
@@ -77,7 +82,7 @@ export default function EmployeesPage() {
             placeholder="Email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+            className={inputClass}
           />
           <input
             required
@@ -86,12 +91,12 @@ export default function EmployeesPage() {
             placeholder="Temporary password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+            className={inputClass}
           />
           <select
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}
-            className="rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+            className={inputClass}
           >
             {Object.values(UserRole).map((role) => (
               <option key={role} value={role}>
@@ -104,54 +109,60 @@ export default function EmployeesPage() {
             placeholder="Employee code (e.g. EMP-010)"
             value={form.employeeCode}
             onChange={(e) => setForm({ ...form, employeeCode: e.target.value })}
-            className="rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+            className={inputClass}
           />
           <input
             placeholder="Designation"
             value={form.designation}
             onChange={(e) => setForm({ ...form, designation: e.target.value })}
-            className="rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+            className={inputClass}
           />
           <input
             placeholder="Department"
             value={form.department}
             onChange={(e) => setForm({ ...form, department: e.target.value })}
-            className="rounded-md border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+            className={inputClass}
           />
-          {error && <p className="col-span-2 text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="col-span-2 rounded-md border border-alert-300 bg-alert-50 px-3 py-2 text-sm font-medium text-black">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
-            className="col-span-2 rounded-md bg-brand-600 px-4 py-2 font-semibold text-white hover:bg-brand-700"
+            className="col-span-2 rounded-md bg-safety-500 px-4 py-2 font-semibold text-black hover:bg-safety-600"
           >
             Create employee
           </button>
         </form>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+      <div className="overflow-hidden rounded-xl border border-steel-200">
         <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-left dark:bg-slate-800">
+          <thead className="bg-steel-100 text-left">
             <tr>
-              <th className="px-4 py-3">Code</th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Designation</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 font-bold">Code</th>
+              <th className="px-4 py-3 font-bold">Name</th>
+              <th className="px-4 py-3 font-bold">Role</th>
+              <th className="px-4 py-3 font-bold">Designation</th>
+              <th className="px-4 py-3 font-bold">Status</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-white">
             {employees.map((emp) => (
-              <tr key={emp.id} className="border-t border-slate-200 dark:border-slate-800">
-                <td className="px-4 py-3 font-mono">{emp.employeeCode}</td>
-                <td className="px-4 py-3">{emp.user.name}</td>
+              <tr key={emp.id} className="border-t border-steel-200">
+                <td className="px-4 py-3 font-mono font-semibold">{emp.employeeCode}</td>
+                <td className="px-4 py-3 font-medium">{emp.user.name}</td>
                 <td className="px-4 py-3">{emp.user.role.replaceAll("_", " ")}</td>
                 <td className="px-4 py-3">{emp.designation ?? "—"}</td>
-                <td className="px-4 py-3">{emp.status}</td>
+                <td className="px-4 py-3">
+                  <Badge color={employmentStatusColor(emp.status)}>{formatStatusLabel(emp.status)}</Badge>
+                </td>
               </tr>
             ))}
             {employees.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-steel-600">
                   No employees yet.
                 </td>
               </tr>
