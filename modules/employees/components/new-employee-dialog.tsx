@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { UserPlus } from "lucide-react";
 import { UserRole } from "@/lib/enums";
+import { STAFF_ROLES } from "@/modules/employees/validators/employee.validators";
 import { apiFetch, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect } from "@/components/ui/input";
@@ -75,7 +76,7 @@ export function NewEmployeeDialog({
             className="col-span-2"
           />
           <NativeSelect value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })} className="col-span-2">
-            {Object.values(UserRole).map((role) => (
+            {STAFF_ROLES.map((role) => (
               <option key={role} value={role}>
                 {formatStatusLabel(role)}
               </option>

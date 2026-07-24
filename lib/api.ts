@@ -20,6 +20,9 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     } catch {
       // ignore
     }
+    if (res.status === 403) {
+      message = "You don't have permission to do this.";
+    }
     throw new ApiError(res.status, Array.isArray(message) ? message.join(", ") : message);
   }
 

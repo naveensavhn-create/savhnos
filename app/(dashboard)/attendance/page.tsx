@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { type ColumnDef } from "@tanstack/react-table";
 import { LogIn, LogOut, MapPin, Radar, Clock, Navigation } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
+import { canViewCompanyAttendance } from "@/lib/permissions";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +42,7 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
 }
 
 export default function AttendancePage() {
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
@@ -47,16 +50,19 @@ export default function AttendancePage() {
   const [busy, setBusy] = useState(false);
 
   const loadHistory = () => apiFetch<AttendanceRecord[]>("/attendance/me").then(setHistory).catch(() => {});
-  const loadToday = () =>
+  const loadToday = () => {
+    if (!canViewCompanyAttendance(user?.role)) return;
     apiFetch<AttendanceRecord[]>("/attendance/today")
       .then(setToday)
       .catch(() => setToday(null));
+  };
 
   useEffect(() => {
     apiFetch<Project[]>("/projects").then(setProjects).catch(() => {});
     loadHistory();
     loadToday();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role]);
 
   const clockIn = async () => {
     setBusy(true);

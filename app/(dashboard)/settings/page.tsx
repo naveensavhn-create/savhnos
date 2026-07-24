@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Building2, MapPinned, Users, Plus, ShieldCheck } from "lucide-react";
+import { Building2, MapPinned, Users, Plus, ShieldCheck, UserCheck, UserX } from "lucide-react";
 import { UserRole } from "@/lib/enums";
+import { STAFF_ROLES } from "@/modules/employees/validators/employee.validators";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -175,8 +176,10 @@ function BranchesTab() {
 }
 
 function TeamTab() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [form, setForm] = useState<{ name: string; email: string; password: string; role: UserRole }>({
     name: "",
     email: "",
@@ -209,6 +212,19 @@ function TeamTab() {
     }
   };
 
+  const toggleActive = async (u: CompanyUser) => {
+    setTogglingId(u.id);
+    try {
+      await apiFetch(`/users/${u.id}/${u.isActive ? "deactivate" : "activate"}`, { method: "PATCH" });
+      toast.success(u.isActive ? `${u.name} deactivated` : `${u.name} activated`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to update user (requires OWNER/SUPER_ADMIN/HR)");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Card className="lg:col-span-2">
@@ -231,6 +247,17 @@ function TeamTab() {
                   </div>
                   <Badge variant="outline">{formatStatusLabel(u.role)}</Badge>
                   {!u.isActive && <Badge variant="danger">Inactive</Badge>}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    loading={togglingId === u.id}
+                    disabled={u.id === currentUser?.sub}
+                    title={u.id === currentUser?.sub ? "You can't deactivate your own account" : u.isActive ? "Deactivate" : "Activate"}
+                    onClick={() => toggleActive(u)}
+                  >
+                    {u.isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -253,7 +280,7 @@ function TeamTab() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
           <NativeSelect value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}>
-            {Object.values(UserRole).map((r) => (
+            {STAFF_ROLES.map((r) => (
               <option key={r} value={r}>
                 {formatStatusLabel(r)}
               </option>

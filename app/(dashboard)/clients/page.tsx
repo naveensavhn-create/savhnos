@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatStatusLabel, pipelineStageVariant } from "@/lib/status";
-import { cn } from "@/lib/cn";
+import { cn, pluralize } from "@/lib/cn";
 import { NewClientDialog } from "@/modules/clients/components/new-client-dialog";
 
 interface Client {
@@ -91,7 +91,9 @@ export default function ClientsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Clients &amp; CRM</h1>
           <p className="text-sm text-muted-foreground">
-            {loading ? "Loading…" : `${clients.length} clients · ${currency.format(totalPipelineValue)} in pipeline`}
+            {loading
+              ? "Loading…"
+              : `${clients.length} ${pluralize(clients.length, "client")} · ${currency.format(totalPipelineValue)} in pipeline`}
           </p>
         </div>
         <div className="flex items-center gap-2">

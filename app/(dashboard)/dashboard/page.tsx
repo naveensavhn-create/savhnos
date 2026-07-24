@@ -21,6 +21,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ChartTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { useAuth } from "@/hooks/use-auth";
 import { apiFetch } from "@/lib/api";
+import { canViewCompanyAttendance } from "@/lib/permissions";
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary";
 import { usePendingApprovals } from "@/hooks/use-pending-approvals";
 import { StatCard } from "@/components/ui/stat-card";
@@ -65,10 +66,14 @@ export default function DashboardPage() {
   useEffect(() => {
     apiFetch<Project[]>("/projects").then(setProjects).catch(() => setProjects([]));
     apiFetch<Employee[]>("/employees").then(setEmployees).catch(() => setEmployees([]));
-    apiFetch<AttendanceToday[]>("/attendance/today")
-      .then(setToday)
-      .catch(() => setCanSeeTeam(false));
-  }, []);
+    if (canViewCompanyAttendance(user?.role)) {
+      apiFetch<AttendanceToday[]>("/attendance/today")
+        .then(setToday)
+        .catch(() => setCanSeeTeam(false));
+    } else {
+      setCanSeeTeam(false);
+    }
+  }, [user?.role]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";

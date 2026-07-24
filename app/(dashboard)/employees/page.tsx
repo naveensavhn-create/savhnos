@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { LayoutGrid, List, Plus, Users, MapPin } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { canViewCompanyAttendance } from "@/lib/permissions";
+import { useAuth } from "@/hooks/use-auth";
 import { useNewFlag } from "@/hooks/use-new-flag";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +37,7 @@ interface AttendanceToday {
 }
 
 export default function EmployeesPage() {
+  const { user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"grid" | "table">("grid");
@@ -49,12 +52,15 @@ export default function EmployeesPage() {
     apiFetch<Employee[]>("/employees")
       .then(setEmployees)
       .finally(() => setLoading(false));
-    apiFetch<AttendanceToday[]>("/attendance/today")
-      .then((records) => setTodayMap(new Map(records.map((r) => [r.employeeId, r]))))
-      .catch(() => {});
+    if (canViewCompanyAttendance(user?.role)) {
+      apiFetch<AttendanceToday[]>("/attendance/today")
+        .then((records) => setTodayMap(new Map(records.map((r) => [r.employeeId, r]))))
+        .catch(() => {});
+    }
   };
 
-  useEffect(load, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [user?.role]);
   useEffect(() => {
     if (openViaQuery) setDialogOpen(true);
   }, [openViaQuery]);

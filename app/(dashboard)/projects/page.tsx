@@ -5,6 +5,7 @@ import Link from "next/link";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Plus, MapPin, FolderKanban, ArrowRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { pluralize } from "@/lib/cn";
 import { useNewFlag } from "@/hooks/use-new-flag";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -114,7 +115,7 @@ export default function ProjectsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground">
-            {loading ? "Loading…" : `${projects.length} projects · ${activeCount} active`}
+            {loading ? "Loading…" : `${projects.length} ${pluralize(projects.length, "project")} · ${activeCount} active`}
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)} className="gap-1.5">

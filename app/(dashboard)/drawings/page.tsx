@@ -14,6 +14,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
+import { pluralize } from "@/lib/cn";
 import { useNewFlag } from "@/hooks/use-new-flag";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +113,9 @@ export default function DrawingsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Drawings</h1>
-          <p className="text-sm text-muted-foreground">{loading ? "Loading…" : `${drawings.length} drawings in this project`}</p>
+          <p className="text-sm text-muted-foreground">
+            {loading ? "Loading…" : `${drawings.length} ${pluralize(drawings.length, "drawing")} in this project`}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <NativeSelect value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-56">
