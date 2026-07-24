@@ -14,6 +14,9 @@ import {
   MapPin,
   LogIn,
   LogOut as LogOutIcon,
+  ShieldAlert,
+  ClipboardX,
+  FileSignature,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ChartTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { useAuth } from "@/hooks/use-auth";
@@ -138,6 +141,35 @@ export default function DashboardPage() {
             accent={summary.finance.profit < 0 ? "danger" : "success"}
             format={(n) => currency.format(n)}
           />
+        </div>
+      )}
+
+      {summary && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Link href="/safety">
+            <StatCard
+              label="Open safety incidents"
+              value={summary.riskAndQuality.openSafetyIncidents}
+              icon={ShieldAlert}
+              accent={summary.riskAndQuality.openSafetyIncidents > 0 ? "danger" : "success"}
+            />
+          </Link>
+          <Link href="/quality">
+            <StatCard
+              label="Open NCRs"
+              value={summary.riskAndQuality.openNonConformances}
+              icon={ClipboardX}
+              accent={summary.riskAndQuality.openNonConformances > 0 ? "warning" : "success"}
+            />
+          </Link>
+          <Link href="/variations">
+            <StatCard
+              label="Variations awaiting decision"
+              value={summary.riskAndQuality.pendingVariations}
+              icon={FileSignature}
+              accent={summary.riskAndQuality.pendingVariations > 0 ? "warning" : "success"}
+            />
+          </Link>
         </div>
       )}
 

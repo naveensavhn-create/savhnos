@@ -83,7 +83,23 @@ dashboard).
   audit trail (`DrawingReview`).
 - **Dashboard aggregation** — one endpoint rolls up project counts by
   status, workforce headcount and who's clocked in right now, pending
-  drawing approvals, and revenue/expenses/profit.
+  drawing approvals, open safety incidents/NCRs/variations, and
+  revenue/expenses/profit.
+- **Cost control** — a four-column report (Budget → Committed → Actual →
+  Forecast) per project, grouped by cost category. Budget comes from
+  `BudgetLine`, Committed from `PurchaseOrder`, Actual is derived straight
+  from the existing `Expense` model (no duplicated bookkeeping), and
+  Forecast defaults to `max(actual, committed)` unless manually overridden.
+- **Variations / change orders** — a real (not decorative) contract-admin
+  slice: raise a variation with cost/time impact, route it to
+  submitted → approved/rejected, feeding the dashboard's "awaiting decision"
+  count.
+- **EHS safety incidents** — near-miss/incident reporting with severity,
+  investigation status, and CAPA (root cause + corrective action) fields,
+  aggregated across every project as a single register.
+- **QA/QC non-conformance reports (NCR)** — raise an NCR against a project,
+  route it through open → under review → closed with a disposition
+  (rework/repair/use-as-is/reject) and closure evidence.
 - **Domain model for what isn't wired up yet** — the Prisma schema also
   models tasks, invoices, expenses, documents, site reports, notifications
   and an audit log, so the next modules (accounting, task boards, document
@@ -99,15 +115,62 @@ dashboard).
 
 ### Explicitly not built (roadmap)
 
-Everything else in the original brief is roadmap, not implemented:
-AI assistant/insights, live GPS map + playback mode, anti-fake-GPS/mock
-location detection, photo/video verification and AI progress comparison,
-BOQ/RFI/submittals, accounting depth (GST/TDS, bank reconciliation,
-cost centers), procurement/inventory/equipment tracking, document OCR,
-company chat/video calls, WhatsApp/Teams/Slack notifications, the Flutter
-mobile app, SSO/MFA/biometric login, and BIM/drone/AR/IoT integrations.
-The schema and module structure are built so these can be added as new
-route handlers + Prisma models without restructuring what's here.
+This project also has an internal "AEC Enterprise Platform — Feature
+Addendum" gap analysis (pre-construction/estimation, contract
+administration, progress billing, cost control, labour compliance, EHS,
+QA/QC, MEP, interior/architecture practice management, real estate
+developer lifecycle, O&M, ESG, BIM/CDE, and an AI layer — roughly 20
+sections). Its own recommendation is explicit: **don't build all of it at
+once** — feature count isn't the moat, depth in a specific workflow is. This
+pass took the highest-value near-term slice (cost control, variations, EHS
+incidents, QA/QC NCRs — all listed above, fully wired, not decorative) and
+left the rest as roadmap:
+
+- **Pre-construction & estimation** — tender/bid management, on-screen
+  quantity takeoff (2D + BIM), rate-analysis estimation, subcontractor bid
+  leveling. Called out in the addendum as the single largest missing
+  revenue module.
+- **Deeper contract administration** — EOT (extension of time), claims,
+  contractual notice-deadline alerts, bank guarantee / insurance expiry
+  tracking, correspondence register. Variations/change orders (above) are
+  the one slice that's live.
+- **Progress billing** — RA bills / digital Measurement Book (India), IPCs
+  / AIA G702-703 (international), retention schedules, statutory
+  deductions.
+- **Subcontractor & labour statutory compliance** — CLRA/BOCW/PF-ESI
+  registers, gang productivity, subcontractor scorecards.
+- **Deeper EHS** — Permit to Work, HIRA/JSA, TRIR/LTIFR metrics, AI PPE
+  detection. Incident + CAPA reporting (above) is live; this is the rest.
+- **Deeper QA/QC** — ITP and WIR (Work Inspection Request) with SLA timers,
+  concrete/material traceability, method-statement approval. NCRs (above)
+  are live; this is the rest.
+- **MEP-specific** — clash detection, testing & commissioning, spool/prefab
+  tracking, COBie/O&M data capture.
+- **Interior design & fit-out** — FF&E schedules, client selection portal,
+  joinery/workshop production tracking.
+- **Architecture practice management** — fee-by-stage tracking, timesheet
+  utilisation/realisation, drawing register auto-numbering, statutory
+  approval tracker (fire NOC, occupancy certificate, etc.).
+- **Real estate developer suite** — genuinely a separate product (land/
+  feasibility, RERA + escrow, unit inventory, bookings, buyer portal) with
+  a different buyer and data model; deliberately out of scope for this pass.
+- **Handover, O&M & facility management** — asset register, warranty
+  tracking, preventive maintenance, AMC contracts.
+- **ESG/sustainability** — embodied carbon, green-rating credit tracking,
+  BRSR/CSRD/GRI exports.
+- **ISO 19650 BIM/CDE** — native IFC viewer, suitability-code container
+  states, 4D/5D model-cost linkage, clash/BCF workflow.
+- **Platform governance** — no-code workflow engine, delegation of
+  authority matrix, e-invoicing/e-way bill/GSTR reconciliation, offline-first
+  sync, accounting connectors (Tally/Zoho/SAP).
+- Plus the original list: AI assistant/insights, live GPS map + playback,
+  anti-fake-GPS detection, photo/video AI progress comparison, document OCR,
+  company chat/video calls, the Flutter mobile app, SSO/MFA/biometric login.
+
+The schema and module structure (`server/services`, `modules/*/validators`,
+`app/api/**`) are built so any of these can be added as new route handlers +
+Prisma models without restructuring what's here — that's how the four
+modules above got added in a single follow-up pass.
 
 ## Frontend design system
 

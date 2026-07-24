@@ -15,6 +15,9 @@ export async function getDashboardSummary(companyId: string) {
     pendingDrawingReviews,
     invoices,
     expenses,
+    openSafetyIncidents,
+    openNonConformances,
+    pendingVariations,
   ] = await Promise.all([
     prisma.project.count({ where: { companyId } }),
     prisma.project.count({ where: { companyId, status: "ACTIVE" } }),
@@ -36,6 +39,9 @@ export async function getDashboardSummary(companyId: string) {
       where: { companyId },
       _sum: { amount: true },
     }),
+    prisma.safetyIncident.count({ where: { project: { companyId }, status: { not: "CLOSED" } } }),
+    prisma.nonConformance.count({ where: { project: { companyId }, status: { not: "CLOSED" } } }),
+    prisma.variation.count({ where: { project: { companyId }, status: "SUBMITTED" } }),
   ]);
 
   const revenue = Number(invoices._sum.amount ?? 0);
@@ -60,6 +66,11 @@ export async function getDashboardSummary(companyId: string) {
       revenue,
       expenses: totalExpenses,
       profit: revenue - totalExpenses,
+    },
+    riskAndQuality: {
+      openSafetyIncidents,
+      openNonConformances,
+      pendingVariations,
     },
   };
 }

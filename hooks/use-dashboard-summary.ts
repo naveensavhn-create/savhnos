@@ -8,6 +8,7 @@ export interface DashboardSummary {
   workforce: { totalEmployees: number; clockedInNow: number; pendingLeaveRequests: number };
   approvals: { pendingDrawingReviews: number };
   finance: { revenue: number; expenses: number; profit: number };
+  riskAndQuality: { openSafetyIncidents: number; openNonConformances: number; pendingVariations: number };
 }
 
 let cached: DashboardSummary | null = null;

@@ -77,6 +77,10 @@ model User {
   auditLogs      AuditLog[]
   notifications  Notification[]
 
+  variations       Variation[]
+  safetyIncidents  SafetyIncident[]
+  nonConformances  NonConformance[]
+
   @@index([companyId])
 }
 
@@ -176,6 +180,12 @@ model Project {
   documents   Document[]
   siteReports SiteReport[]
   attendances Attendance[]
+
+  budgetLines      BudgetLine[]
+  purchaseOrders   PurchaseOrder[]
+  variations       Variation[]
+  safetyIncidents  SafetyIncident[]
+  nonConformances  NonConformance[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -486,4 +496,152 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([companyId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cost Control — four-column budget/committed/actual/forecast per project.
+// "Actual" is derived from Expense (already scoped by project + category);
+// BudgetLine and PurchaseOrder are the two new primitives this needs.
+// ─────────────────────────────────────────────────────────────────────────
+
+model BudgetLine {
+  id             String          @id @default(cuid())
+  projectId      String
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category       ExpenseCategory
+  description    String?
+  budgetAmount   Decimal         @db.Decimal(14, 2)
+  forecastAmount Decimal?        @db.Decimal(14, 2)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([projectId, category])
+  @@index([projectId])
+}
+
+enum POStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_INVOICED
+  CLOSED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id          String          @id @default(cuid())
+  projectId   String
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  poNumber    String
+  vendorName  String
+  category    ExpenseCategory
+  description String?
+  amount      Decimal         @db.Decimal(14, 2)
+  status      POStatus        @default(DRAFT)
+  issuedAt    DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([projectId, poNumber])
+  @@index([projectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Contract administration — Variations / Change Orders
+// ─────────────────────────────────────────────────────────────────────────
+
+enum VariationStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model Variation {
+  id              String          @id @default(cuid())
+  projectId       String
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  variationNumber String
+  title           String
+  description     String?
+  costImpact      Decimal?        @db.Decimal(14, 2)
+  timeImpactDays  Int?
+  status          VariationStatus @default(DRAFT)
+  requestedById   String?
+  requestedBy     User?           @relation(fields: [requestedById], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([projectId, variationNumber])
+  @@index([projectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// EHS — safety incidents with root-cause + corrective-action (CAPA)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum IncidentSeverity {
+  NEAR_MISS
+  MINOR
+  MODERATE
+  MAJOR
+  FATALITY
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  CLOSED
+}
+
+model SafetyIncident {
+  id               String           @id @default(cuid())
+  projectId        String
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  severity         IncidentSeverity
+  status           IncidentStatus   @default(OPEN)
+  occurredAt       DateTime         @default(now())
+  reportedById     String?
+  reportedBy       User?            @relation(fields: [reportedById], references: [id])
+  rootCause        String?
+  correctiveAction String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([projectId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// QA/QC — Non-Conformance Reports
+// ─────────────────────────────────────────────────────────────────────────
+
+enum NCRStatus {
+  OPEN
+  UNDER_REVIEW
+  CLOSED
+}
+
+enum NCRDisposition {
+  REWORK
+  REPAIR
+  USE_AS_IS
+  REJECT
+}
+
+model NonConformance {
+  id              String          @id @default(cuid())
+  projectId       String
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  status          NCRStatus       @default(OPEN)
+  disposition     NCRDisposition?
+  closureEvidence String?
+  raisedById      String?
+  raisedBy        User?           @relation(fields: [raisedById], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([projectId])
 }

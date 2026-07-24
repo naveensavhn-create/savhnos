@@ -16,6 +16,12 @@ export {
   DrawingStatus,
   InvoiceStatus,
   ExpenseCategory,
+  POStatus,
+  VariationStatus,
+  IncidentSeverity,
+  IncidentStatus,
+  NCRStatus,
+  NCRDisposition,
 } from "@prisma/client";
 
 import { UserRole } from "@prisma/client";

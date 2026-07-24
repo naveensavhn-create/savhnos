@@ -425,6 +425,138 @@ async function main() {
     ],
   });
 
+  // ── Cost control: budgets + purchase orders (Actual comes from Expense above) ──
+  await prisma.budgetLine.createMany({
+    data: [
+      { projectId: skyHeights.id, category: "MATERIAL", budgetAmount: 5000000 },
+      { projectId: skyHeights.id, category: "LABOR", budgetAmount: 2500000 },
+      { projectId: skyHeights.id, category: "EQUIPMENT", budgetAmount: 1000000 },
+      { projectId: coastalVillas.id, category: "MATERIAL", budgetAmount: 6500000 },
+      { projectId: coastalVillas.id, category: "LABOR", budgetAmount: 2000000 },
+      { projectId: boutiqueInteriors.id, category: "MATERIAL", budgetAmount: 1000000 },
+      { projectId: boutiqueInteriors.id, category: "MISC", budgetAmount: 200000 },
+    ],
+  });
+  await prisma.purchaseOrder.createMany({
+    data: [
+      { projectId: skyHeights.id, poNumber: "PO-SKY-001", vendorName: "Bharat Steel Traders", category: "MATERIAL", description: "Rebar — Tower A, floors 8-12", amount: 1200000, status: "ISSUED" },
+      { projectId: skyHeights.id, poNumber: "PO-SKY-002", vendorName: "Apex Crane Hire", category: "EQUIPMENT", description: "Tower crane — extension, April", amount: 300000, status: "ISSUED" },
+      { projectId: coastalVillas.id, poNumber: "PO-CVP-001", vendorName: "Coastal Precast Ltd", category: "MATERIAL", description: "Precast wall panels — batch 2", amount: 800000, status: "PARTIALLY_INVOICED" },
+      { projectId: boutiqueInteriors.id, poNumber: "PO-WBI-001", vendorName: "Urban Fixtures Co", category: "MATERIAL", description: "Retail unit signage & fixtures", amount: 200000, status: "CLOSED" },
+    ],
+  });
+
+  // ── Contract administration: variations / change orders ────────────────
+  await prisma.variation.createMany({
+    data: [
+      {
+        projectId: skyHeights.id,
+        variationNumber: "VO-SKY-001",
+        title: "Additional waterproofing — basement",
+        description: "Client-instructed upgrade to basement waterproofing membrane after site inspection.",
+        costImpact: 350000,
+        timeImpactDays: 5,
+        status: "APPROVED",
+        requestedById: byEmail("projectengineer@savhnos.dev").id,
+      },
+      {
+        projectId: skyHeights.id,
+        variationNumber: "VO-SKY-002",
+        title: "Facade material upgrade",
+        description: "Switch to higher-grade ACP cladding per client request.",
+        costImpact: 1200000,
+        timeImpactDays: 10,
+        status: "SUBMITTED",
+        requestedById: byEmail("architect@savhnos.dev").id,
+      },
+      {
+        projectId: coastalVillas.id,
+        variationNumber: "VO-CVP-001",
+        title: "Site access road realignment",
+        description: "Local authority requires realigned access road around the eastern boundary.",
+        costImpact: 500000,
+        timeImpactDays: 15,
+        status: "SUBMITTED",
+        requestedById: byEmail("siteengineer@savhnos.dev").id,
+      },
+      {
+        projectId: boutiqueInteriors.id,
+        variationNumber: "VO-WBI-001",
+        title: "Additional signage package",
+        description: "Client requested extra retail unit signage beyond the original fit-out scope.",
+        costImpact: 80000,
+        timeImpactDays: 3,
+        status: "APPROVED",
+        requestedById: byEmail("interiordesigner@savhnos.dev").id,
+      },
+    ],
+  });
+
+  // ── EHS: safety incidents with CAPA ─────────────────────────────────
+  await prisma.safetyIncident.createMany({
+    data: [
+      {
+        projectId: skyHeights.id,
+        title: "Near miss — scaffolding plank slip",
+        description: "A loose scaffold plank shifted underfoot on level 6. No fall occurred.",
+        severity: "NEAR_MISS",
+        status: "CLOSED",
+        occurredAt: hoursAgo(96),
+        reportedById: byEmail("siteengineer@savhnos.dev").id,
+        rootCause: "Plank not secured with toe board clip after last inspection.",
+        correctiveAction: "All scaffold planks re-clipped; added to daily toolbox talk checklist.",
+      },
+      {
+        projectId: skyHeights.id,
+        title: "Minor hand injury during rebar tying",
+        description: "Worker sustained a minor cut while tying rebar without cut-resistant gloves.",
+        severity: "MINOR",
+        status: "INVESTIGATING",
+        occurredAt: hoursAgo(20),
+        reportedById: byEmail("qcengineer@savhnos.dev").id,
+      },
+      {
+        projectId: coastalVillas.id,
+        title: "Heat exhaustion — site worker",
+        description: "Worker showed signs of heat exhaustion during midday pour; treated on site and sent for check-up.",
+        severity: "MODERATE",
+        status: "OPEN",
+        occurredAt: hoursAgo(5),
+        reportedById: byEmail("siteengineer@savhnos.dev").id,
+      },
+    ],
+  });
+
+  // ── QA/QC: non-conformance reports ──────────────────────────────────
+  await prisma.nonConformance.createMany({
+    data: [
+      {
+        projectId: skyHeights.id,
+        title: "Concrete cover deficiency — Column C12",
+        description: "Measured cover below spec on 3 of 8 rebar cages inspected.",
+        status: "OPEN",
+        raisedById: byEmail("qcengineer@savhnos.dev").id,
+      },
+      {
+        projectId: skyHeights.id,
+        title: "Incorrect rebar spacing — Slab L3",
+        description: "Spacing exceeds drawing tolerance by 15mm in the northeast quadrant.",
+        status: "UNDER_REVIEW",
+        disposition: "REWORK",
+        raisedById: byEmail("qcengineer@savhnos.dev").id,
+      },
+      {
+        projectId: coastalVillas.id,
+        title: "Paint finish defect — Villa 4",
+        description: "Visible brush marks and uneven sheen on exterior render.",
+        status: "CLOSED",
+        disposition: "REPAIR",
+        closureEvidence: "Repainted and re-inspected on 2026-07-10; passed final QC walk.",
+        raisedById: byEmail("siteengineer@savhnos.dev").id,
+      },
+    ],
+  });
+
   // eslint-disable-next-line no-console
   console.log("Demo data seeded.\n");
   // eslint-disable-next-line no-console

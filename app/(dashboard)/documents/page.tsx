@@ -6,8 +6,8 @@ export default function DocumentsPage() {
     <ComingSoon
       icon={FileText}
       title="Documents"
-      description="Central document vault with folders, OCR search and expiry alerts."
-      needs={["Object storage (S3/R2)", "Documents API", "OCR/search indexing"]}
+      description="Central document vault with folders, OCR search and expiry alerts — the eventual home for tender document vaults, transmittals, and auto-compiled as-built handover packs."
+      needs={["Object storage (S3/R2)", "Documents API", "OCR/search indexing", "Transmittal + acknowledgement tracking"]}
     />
   );
 }

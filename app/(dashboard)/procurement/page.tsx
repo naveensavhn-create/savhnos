@@ -6,8 +6,8 @@ export default function ProcurementPage() {
     <ComingSoon
       icon={ShoppingCart}
       title="Procurement"
-      description="Material requests, approval workflow, purchase orders and vendor comparison."
-      needs={["Material request API", "Purchase order model", "Vendor comparison"]}
+      description="Material requests, approval workflow and vendor comparison. The PurchaseOrder model already exists (Cost Control raises POs against a project budget) — this page is the missing front end for the procurement workflow around it: requisitions, RFQs and vendor comparison sheets."
+      needs={["Material request API", "RFQ issue + sealed quote comparison", "Vendor master + scorecards", "Goods-receipt / gate-pass reconciliation"]}
     />
   );
 }

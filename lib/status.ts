@@ -43,6 +43,41 @@ const TASK_STATUS_VARIANT: Record<string, StatusVariant> = {
   BLOCKED: "danger",
 };
 
+const VARIATION_STATUS_VARIANT: Record<string, StatusVariant> = {
+  DRAFT: "neutral",
+  SUBMITTED: "warning",
+  APPROVED: "success",
+  REJECTED: "danger",
+};
+
+const INCIDENT_SEVERITY_VARIANT: Record<string, StatusVariant> = {
+  NEAR_MISS: "neutral",
+  MINOR: "info",
+  MODERATE: "warning",
+  MAJOR: "danger",
+  FATALITY: "danger",
+};
+
+const INCIDENT_STATUS_VARIANT: Record<string, StatusVariant> = {
+  OPEN: "danger",
+  INVESTIGATING: "warning",
+  CLOSED: "success",
+};
+
+const NCR_STATUS_VARIANT: Record<string, StatusVariant> = {
+  OPEN: "danger",
+  UNDER_REVIEW: "warning",
+  CLOSED: "success",
+};
+
+const PO_STATUS_VARIANT: Record<string, StatusVariant> = {
+  DRAFT: "neutral",
+  ISSUED: "primary",
+  PARTIALLY_INVOICED: "warning",
+  CLOSED: "success",
+  CANCELLED: "danger",
+};
+
 export function projectStatusVariant(status: string): StatusVariant {
   return PROJECT_STATUS_VARIANT[status] ?? "neutral";
 }
@@ -61,6 +96,26 @@ export function employmentStatusVariant(status: string): StatusVariant {
 
 export function taskStatusVariant(status: string): StatusVariant {
   return TASK_STATUS_VARIANT[status] ?? "neutral";
+}
+
+export function variationStatusVariant(status: string): StatusVariant {
+  return VARIATION_STATUS_VARIANT[status] ?? "neutral";
+}
+
+export function incidentSeverityVariant(severity: string): StatusVariant {
+  return INCIDENT_SEVERITY_VARIANT[severity] ?? "neutral";
+}
+
+export function incidentStatusVariant(status: string): StatusVariant {
+  return INCIDENT_STATUS_VARIANT[status] ?? "neutral";
+}
+
+export function ncrStatusVariant(status: string): StatusVariant {
+  return NCR_STATUS_VARIANT[status] ?? "neutral";
+}
+
+export function poStatusVariant(status: string): StatusVariant {
+  return PO_STATUS_VARIANT[status] ?? "neutral";
 }
 
 export function formatStatusLabel(status: string): string {

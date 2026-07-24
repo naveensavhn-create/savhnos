@@ -14,6 +14,11 @@ import {
   BarChart3,
   Sparkles,
   Settings,
+  FileSignature,
+  ShieldAlert,
+  ClipboardX,
+  ClipboardList,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +60,21 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Commercial",
+    items: [
+      { href: "/cost-control", label: "Cost Control", icon: Calculator, live: true },
+      { href: "/variations", label: "Variations", icon: FileSignature, live: true },
+      { href: "/finance", label: "Finance", icon: Wallet, live: false },
+    ],
+  },
+  {
+    label: "Quality & Safety",
+    items: [
+      { href: "/safety", label: "Safety (EHS)", icon: ShieldAlert, live: true },
+      { href: "/quality", label: "Quality (NCR)", icon: ClipboardX, live: true },
+    ],
+  },
+  {
     label: "People",
     items: [
       { href: "/employees", label: "Employees", icon: Users, shortcut: "G E", live: true },
@@ -65,7 +85,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operations",
     items: [
-      { href: "/finance", label: "Finance", icon: Wallet, live: false },
+      { href: "/estimation", label: "Estimation & Tendering", icon: ClipboardList, live: false },
       { href: "/procurement", label: "Procurement", icon: ShoppingCart, live: false },
       { href: "/inventory", label: "Inventory", icon: Boxes, live: false },
     ],

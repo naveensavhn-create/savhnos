@@ -6,8 +6,14 @@ export default function HrmsPage() {
     <ComingSoon
       icon={UserSquare2}
       title="HRMS"
-      description="Payroll, leave approvals, recruitment pipeline, performance reviews and shift management."
-      needs={["Leave approval API", "Payroll engine", "Recruitment module", "Performance reviews"]}
+      description="Payroll, leave approvals, recruitment pipeline, performance reviews and shift management — plus the subcontractor/labour statutory compliance layer (CLRA, BOCW, PF/ESI) that's a major operational risk for contractors and almost entirely absent from most field-ops platforms."
+      needs={[
+        "Leave approval API",
+        "Payroll engine",
+        "Labour statutory registers (CLRA licence, BOCW, PF/ESI)",
+        "Recruitment module",
+        "Performance reviews",
+      ]}
     />
   );
 }
