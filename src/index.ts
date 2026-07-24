@@ -22,7 +22,54 @@ import { AppModule } from "./app.module";
  * Nest as an isolated sub-app avoids that entirely — Nest's 404 handling
  * only ever sees requests already scoped to /api.
  */
+
+/**
+ * Fail fast with a message that says exactly what's wrong, instead of a
+ * multi-hundred-line Prisma stack trace (or, on some hosts, no log output
+ * at all — just a silently-dead process that the web server falls back to
+ * serving a generic 403/404 for). This one check accounts for the majority
+ * of "app won't start" support time on a fresh shared-hosting deploy.
+ */
+function validateEnv() {
+  const required = ["DATABASE_URL", "JWT_SECRET"];
+  const missing = required.filter((key) => !process.env[key]?.trim());
+
+  if (missing.length > 0) {
+    // eslint-disable-next-line no-console
+    console.error(
+      [
+        "",
+        "✖ savhnos failed to start: missing required environment variable(s).",
+        `  ${missing.join(", ")}`,
+        "",
+        "  Set these in your hosting panel's Node.js App → Environment Variables",
+        "  screen, then restart the app. See DEPLOY.md for what each one needs.",
+        "",
+      ].join("\n")
+    );
+    process.exit(1);
+  }
+
+  if (!/^postgres(ql)?:\/\//.test(process.env.DATABASE_URL!.trim())) {
+    // eslint-disable-next-line no-console
+    console.error(
+      [
+        "",
+        "✖ savhnos failed to start: DATABASE_URL doesn't look like a Postgres",
+        "  connection string (expected it to start with postgres:// or",
+        "  postgresql://). This app needs Postgres — most shared hosting plans",
+        "  (including Hostinger's) only provide MySQL, so you'll need an",
+        "  external Postgres such as Neon or Supabase. See DEPLOY.md.",
+        "",
+      ].join("\n")
+    );
+    process.exit(1);
+  }
+}
+
 async function bootstrap() {
+  validateEnv();
+
   const nestApp = await NestFactory.create(AppModule, { cors: true });
   nestApp.useGlobalPipes(
     new ValidationPipe({
@@ -51,4 +98,13 @@ async function bootstrap() {
   });
 }
 
-bootstrap();
+process.on("unhandledRejection", (err) => {
+  // eslint-disable-next-line no-console
+  console.error("✖ Unhandled rejection during startup or request handling:", err);
+});
+
+bootstrap().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error("✖ savhnos failed to start:", err);
+  process.exit(1);
+});
