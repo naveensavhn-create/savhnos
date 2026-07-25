@@ -18,6 +18,7 @@ import {
   Handshake,
   Ruler,
   CircleCheckBig,
+  Menu,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCommandPalette } from "@/components/command-palette-context";
@@ -40,7 +41,7 @@ interface Company {
   gstNumber: string | null;
 }
 
-export function TopNav() {
+export function TopNav({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, logout } = useAuth();
   const { setOpen } = useCommandPalette();
   const { summary } = useDashboardSummary();
@@ -58,6 +59,10 @@ export function TopNav() {
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border bg-card px-5">
+      <Button variant="ghost" size="icon" className="-ml-1.5 lg:hidden" onClick={onMenuClick} title="Open menu">
+        <Menu className="h-4 w-4" />
+      </Button>
+
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm font-semibold hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <span className="max-w-[160px] truncate">{company?.name ?? "Workspace"}</span>
